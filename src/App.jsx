@@ -173,32 +173,6 @@ export default function App() {
     })();
   },[authed]);
 
-  if(!authed) return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#4A1A2C"}}>
-      <style>{CSS}</style>
-      <div style={{textAlign:"center",padding:"0 32px",width:"100%",maxWidth:380}}>
-        <div style={{fontSize:64,marginBottom:16}}>🍫</div>
-        <div style={{fontFamily:"'Playfair Display',serif",color:"#E8899A",fontSize:28,marginBottom:6}}>Delícias da Jay</div>
-        <div style={{color:"#C45C7488",fontSize:13,marginBottom:36,letterSpacing:".08em",textTransform:"uppercase"}}>Fichas Técnicas</div>
-        <input
-          style={{width:"100%",padding:"14px 18px",borderRadius:50,border:`2px solid ${erroLogin?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.18)",fontFamily:"'DM Sans',sans-serif",fontSize:16,color:"#fff",WebkitTextFillColor:"#fff",outline:"none",textAlign:"center",letterSpacing:".15em",boxSizing:"border-box",marginBottom:12,animation:erroLogin?"shake .3s":""}}
-          type="password"
-          placeholder="Digite sua senha"
-          value={senha}
-          onChange={e=>{setSenha(e.target.value);setErroLogin(false);}}
-          onKeyDown={e=>e.key==="Enter"&&fazerLogin()}
-        />
-        {erroLogin && <div style={{color:"#ff6b6b",fontSize:13,marginBottom:12}}>Senha incorreta ❌</div>}
-        <button
-          style={{width:"100%",padding:"14px",borderRadius:50,border:"none",background:"linear-gradient(135deg,#C45C74,#E8899A)",color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:600,cursor:"pointer",boxShadow:"0 6px 20px rgba(196,92,116,.4)"}}
-          onClick={fazerLogin}>
-          Entrar
-        </button>
-      </div>
-    </div>
-  );
-
-
   const _upsert = async (tabela, dados) => {
     await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
       method: "POST",
@@ -277,6 +251,32 @@ export default function App() {
     .filter((p,i,self)=>self.findIndex(x=>x.nome.toLowerCase()===p.nome.toLowerCase())===i)
     .filter(p=>p.nome.toLowerCase().includes(searchP.toLowerCase())&&(catP==="Todos"||p.categoria===catP))
     .sort((a,b)=>a.nome.localeCompare(b.nome));
+
+  // ── LOGIN ──
+  if(!authed) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:"#4A1A2C"}}>
+      <style>{CSS}</style>
+      <div style={{textAlign:"center",padding:"0 32px",width:"100%",maxWidth:380}}>
+        <div style={{fontSize:64,marginBottom:16}}>🍰</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:"#E8899A",fontSize:28,marginBottom:6}}>Delícias da Jay</div>
+        <div style={{color:"#C45C7488",fontSize:13,marginBottom:36,letterSpacing:".08em",textTransform:"uppercase"}}>Fichas Técnicas</div>
+        <input
+          style={{width:"100%",padding:"14px 18px",borderRadius:50,border:`2px solid ${erroLogin?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.18)",fontFamily:"'DM Sans',sans-serif",fontSize:16,color:"#fff",WebkitTextFillColor:"#fff",outline:"none",textAlign:"center",letterSpacing:".15em",boxSizing:"border-box",marginBottom:12,animation:erroLogin?"shake .3s":""}}
+          type="password"
+          placeholder="Digite sua senha"
+          value={senha}
+          onChange={e=>{setSenha(e.target.value);setErroLogin(false);}}
+          onKeyDown={e=>e.key==="Enter"&&fazerLogin()}
+        />
+        {erroLogin && <div style={{color:"#ff6b6b",fontSize:13,marginBottom:12}}>Senha incorreta ❌</div>}
+        <button
+          style={{width:"100%",padding:"14px",borderRadius:50,border:"none",background:"linear-gradient(135deg,#C45C74,#E8899A)",color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:600,cursor:"pointer",boxShadow:"0 6px 20px rgba(196,92,116,.4)"}}
+          onClick={fazerLogin}>
+          Entrar
+        </button>
+      </div>
+    </div>
+  );
 
   // ── SPLASH ──
   if(loading) return(
