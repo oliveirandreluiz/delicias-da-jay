@@ -67,16 +67,7 @@ const SEED_PRODUTOS = [
 
 // ─── RECEITAS SEED (vazio — cadastre suas receitas pelo app) ─────────────
 const SEED_RECIPES = [];
-    rendimento:10, margem:100, taxaDelivery:30, despesas:0, precoApp:15, obs:"",
-    ingredientes:[
-      {produtoId:"p-16",usadoQtd:160},{produtoId:"p-03",usadoQtd:230},
-      {produtoId:"p-19",usadoQtd:300},{produtoId:"p-20",usadoQtd:10},
-      {produtoId:"p-34",usadoQtd:3}, {produtoId:"p-02",usadoQtd:250},
-      {produtoId:"p-10",usadoQtd:395},{produtoId:"p-11",usadoQtd:400},
-      {produtoId:"p-13",usadoQtd:40},{produtoId:"p-27",usadoQtd:30},
-      {produtoId:"p-50",usadoQtd:10},{produtoId:"p-56",usadoQtd:10},
-    ],
-  },
+
 // ─── SUPABASE CONFIG (via variáveis de ambiente do Vercel) ────────────────
 const SUPA_URL     = import.meta.env.VITE_SUPA_URL;
 const SUPA_ANON    = import.meta.env.VITE_SUPA_ANON;
