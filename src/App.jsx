@@ -549,7 +549,7 @@ export default function App() {
                   onChange={e => setRForm({...rForm,taxaDelivery:parseFloat(e.target.value)||0})}/>
               </div>
             </div>
-            {c.porUn > 0 && <div style={{...s.tag,marginBottom:10}}>💡 Custo/un {fmt(c.porUn)} ÷ {100-(rForm.taxaDelivery||30)}% = {fmt(c.final)}</div>}
+            {c.porUn > 0 && <div style={{...s.tag,marginBottom:10}}>💡 {fmt(c.porUn)} × {rForm.margem||0}% margem ÷ {100-(rForm.taxaDelivery||30)}% = {fmt(c.final)}</div>}
             <label style={s.lbl}>Despesas extras (R$)</label>
             <input style={s.inp} type="number" step="0.01" placeholder="0,00" value={rForm.despesas||""} onChange={e => setRForm({...rForm,despesas:parseFloat(e.target.value)||0})}/>
             <div style={s.ph}>
