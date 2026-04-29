@@ -147,6 +147,18 @@ export default function App() {
     setSenha("");
   };
 
+  const _upsert = async (tabela, dados) => {
+    await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
+      method: "POST",
+      headers: {...SUPA_HEADERS, "Prefer": "resolution=merge-duplicates"},
+      body: JSON.stringify({id: 1, dados}),
+    });
+  };
+
+  const saveR = async d=>{setSaving(true);await _upsert("receitas",d);setSaving(false);};
+  const saveP = async d=>{setSaving(true);await _upsert("produtos",d);setSaving(false);};
+  const toast_ = msg=>{setToast(msg);setTimeout(()=>setToast(""),2800);};
+
   useEffect(()=>{
     if(!authed) return;
     (async()=>{
@@ -172,18 +184,6 @@ export default function App() {
       setLoading(false);
     })();
   },[authed]);
-
-  const _upsert = async (tabela, dados) => {
-    await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
-      method: "POST",
-      headers: {...SUPA_HEADERS, "Prefer": "resolution=merge-duplicates"},
-      body: JSON.stringify({id: 1, dados}),
-    });
-  };
-
-  const saveR = async d=>{setSaving(true);await _upsert("receitas",d);setSaving(false);};
-  const saveP = async d=>{setSaving(true);await _upsert("produtos",d);setSaving(false);};
-  const toast_ = msg=>{setToast(msg);setTimeout(()=>setToast(""),2800);};
 
   // ── PRODUTO FORM ──
   const blankP   = ()=>({id:Date.now().toString(),nome:"",preco:"",embalagemQtd:"",unidade:"g",categoria:"Secos"});
