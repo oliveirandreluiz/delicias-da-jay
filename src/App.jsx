@@ -327,14 +327,16 @@ export default function App() {
   const copiarReceita = async id => {
     const r = recipes.find(r => r.id === id);
     const copia = { ...JSON.parse(JSON.stringify(r)), id: Date.now().toString(), nome: `Cópia de ${r.nome}` };
-    const up = [...recipes, copia]; setRecipes(up); await saveR(up);
-    toast_("📋 Receita copiada!"); setDetailId(copia.id); setView("detail");
+    // Abre formulário de edição com a cópia para revisar antes de salvar
+    setRForm(copia); setEditId(null); setView("rForm");
+    toast_("📋 Revise e salve a cópia!");
   };
   const copiarProduto = async id => {
     const p = produtos.find(p => p.id === id);
-    const copia = { ...p, id: Date.now().toString(), nome: `Cópia de ${p.nome}` };
-    const up = [...produtos, copia]; setProdutos(up); await saveP(up);
-    toast_("📋 Produto copiado!");
+    const copia = { ...p, id: Date.now().toString(), nome: `Cópia de ${p.nome}`, preco: String(p.preco), embalagemQtd: String(p.embalagemQtd) };
+    // Abre formulário de edição com a cópia para revisar antes de salvar
+    setPForm(copia); setEditPId(null); setView("pForm");
+    toast_("📋 Revise e salve a cópia!");
   };
 
   // ── EXPORTAR CSV ──
@@ -669,7 +671,7 @@ export default function App() {
   if (view === "detail") {
     const r = recipes.find(r => r.id === detailId);
     if (!r) { setView("list"); return null; }
-    const { ci, outros, total, porUn, semT, taxa, final, lucro } = calc(r, produtos);
+    const { ci, outros, total, porUn, semT, taxa, final, lucro, lucroApp } = calc(r, produtos);
     return (
       <div style={s.app}><style>{CSS}</style>
         <div style={s.dh}>
