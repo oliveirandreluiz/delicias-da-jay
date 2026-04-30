@@ -91,9 +91,8 @@ function calc(r, prods) {
   const tp     = (r.taxaDelivery||30) / 100;
   const final  = tp < 1 ? semT / (1 - tp) : semT;
   const taxa   = final - semT;
-  const lucro  = (final - porUn) * r.rendimento;
-  // lucro considerando preço praticado
-  const lucroApp = r.precoApp > 0 ? (r.precoApp - porUn) * r.rendimento : null;
+  const lucro    = (final - taxa - porUn) * r.rendimento;
+  const lucroApp = r.precoApp > 0 ? (r.precoApp - (r.precoApp * tp) - porUn) * r.rendimento : null;
   return { ci, outros, total, porUn, semT, taxa, final, lucro, lucroApp };
 }
 
