@@ -460,7 +460,7 @@ export default function App() {
           )}
           <button style={s.bsave} onClick={saveProd}>{saving ? "Salvando..." : "✅ Salvar Produto"}</button>
           {editPId && <button style={{...s.bd,width:"100%",marginTop:10,padding:13,textAlign:"center"}} onClick={() => pedirExcP(editPId)}>🗑 Excluir produto</button>}
-          {editPId && <button style={{...s.bpri,width:"100%",marginTop:8,padding:13,textAlign:"center",borderRadius:50}} onClick={async()=>{await copiarProduto(editPId);setView("list");setTab("produtos");}}>📋 Copiar produto</button>}
+          {editPId && <button style={{...s.bpri,width:"100%",marginTop:8,padding:13,textAlign:"center",borderRadius:50}} onClick={() => copiarProduto(editPId)}>📋 Copiar produto</button>}
           <div style={{height:40}}/>
         </div>
         <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
