@@ -83,7 +83,8 @@ function calc(r, prods) {
     const p = prods.find(p => p.id === i.produtoId);
     return p ? s + (p.preco / p.embalagemQtd) * i.usadoQtd : s;
   }, 0);
-  const outros = ci * 0.30;
+  const pctOutros = (r.outrosCustos !== undefined ? r.outrosCustos : 30) / 100;
+  const outros = ci * pctOutros;
   const total  = ci + outros + (r.despesas||0);
   const porUn  = r.rendimento > 0 ? total / r.rendimento : 0;
   const semT   = porUn * (1 + (r.margem||100) / 100);
@@ -91,7 +92,9 @@ function calc(r, prods) {
   const final  = tp < 1 ? semT / (1 - tp) : semT;
   const taxa   = final - semT;
   const lucro  = (final - porUn) * r.rendimento;
-  return { ci, outros, total, porUn, semT, taxa, final, lucro };
+  // lucro considerando preço praticado
+  const lucroApp = r.precoApp > 0 ? (r.precoApp - porUn) * r.rendimento : null;
+  return { ci, outros, total, porUn, semT, taxa, final, lucro, lucroApp };
 }
 
 async function upsert(tabela, dados) {
@@ -227,6 +230,7 @@ export default function App() {
   const [editPId,    setEditPId]    = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [quickP,     setQuickP]     = useState(null);
+  const [viewRel,    setViewRel]    = useState(false); // tela relatórios
 
   // ── HELPERS ──
   const toast_ = useCallback(msg => { setToast(msg); setTimeout(() => setToast(""), 2800); }, []);
@@ -283,7 +287,7 @@ export default function App() {
   };
 
   // ── RECEITA CRUD ──
-  const blankR    = () => ({ id: Date.now().toString(), emoji:"🍫", nome:"", categoria:"", rendimento:10, margem:100, taxaDelivery:30, despesas:0, precoApp:0, obs:"", ingredientes:[{produtoId:"",usadoQtd:0},{produtoId:"",usadoQtd:0}] });
+  const blankR    = () => ({ id: Date.now().toString(), emoji:"🍫", nome:"", categoria:"", rendimento:10, margem:100, taxaDelivery:30, outrosCustos:30, despesas:0, precoApp:0, obs:"", ingredientes:[{produtoId:"",usadoQtd:0},{produtoId:"",usadoQtd:0}] });
   const openNewR  = () => { setRForm(blankR()); setEditId(null); setView("rForm"); };
   const openEditR = id => { setRForm(JSON.parse(JSON.stringify(recipes.find(r => r.id === id)))); setEditId(id); setView("rForm"); };
   const openDet   = id => { setDetailId(id); setView("detail"); };
@@ -317,6 +321,46 @@ export default function App() {
   const updIng = (idx, field, val) => {
     const a = [...rForm.ingredientes]; a[idx] = { ...a[idx], [field]: val };
     setRForm({ ...rForm, ingredientes: a });
+  };
+
+  // ── COPIAR ──
+  const copiarReceita = async id => {
+    const r = recipes.find(r => r.id === id);
+    const copia = { ...JSON.parse(JSON.stringify(r)), id: Date.now().toString(), nome: `Cópia de ${r.nome}` };
+    const up = [...recipes, copia]; setRecipes(up); await saveR(up);
+    toast_("📋 Receita copiada!"); setDetailId(copia.id); setView("detail");
+  };
+  const copiarProduto = async id => {
+    const p = produtos.find(p => p.id === id);
+    const copia = { ...p, id: Date.now().toString(), nome: `Cópia de ${p.nome}` };
+    const up = [...produtos, copia]; setProdutos(up); await saveP(up);
+    toast_("📋 Produto copiado!");
+  };
+
+  // ── EXPORTAR CSV ──
+  const exportarCSV = (tipo) => {
+    let csv = "", nome = "";
+    if (tipo === "receitas") {
+      nome = "receitas_delicias_da_jay.csv";
+      csv = "Nome;Categoria;Rendimento;Margem%;Taxa Delivery%;Custo Total;Custo/Unidade;Preço Sugerido/Un;Preço Praticado;Lucro Estimado Lote\n";
+      recipes.forEach(r => {
+        const c = calc(r, produtos);
+        csv += `"${r.nome}";"${r.categoria||""}";"${r.rendimento}";"${r.margem}";"${r.taxaDelivery}";"${fmtN(c.total)}";"${fmtN(c.porUn)}";"${fmtN(c.final)}";"${fmtN(r.precoApp)}";"${fmtN(c.lucro)}"\n`;
+      });
+    } else {
+      nome = "produtos_delicias_da_jay.csv";
+      csv = "Nome;Categoria;Unidade;Preço Embalagem;Qtd Embalagem;Custo por Unidade;Usado em Receitas\n";
+      filtP.forEach(p => {
+        const used = recipes.filter(r => r.ingredientes.some(i => i.produtoId === p.id)).length;
+        const pu = p.embalagemQtd ? p.preco / p.embalagemQtd : 0;
+        csv += `"${p.nome}";"${p.categoria}";"${p.unidade}";"${fmtN(p.preco)}";"${p.embalagemQtd}";"${fmtN(pu)}";"${used}"\n`;
+      });
+    }
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a"); a.href = url; a.download = nome; a.click();
+    URL.revokeObjectURL(url);
+    toast_("📊 CSV exportado!");
   };
 
   // ── FILTROS ──
@@ -414,6 +458,7 @@ export default function App() {
           )}
           <button style={s.bsave} onClick={saveProd}>{saving ? "Salvando..." : "✅ Salvar Produto"}</button>
           {editPId && <button style={{...s.bd,width:"100%",marginTop:10,padding:13,textAlign:"center"}} onClick={() => pedirExcP(editPId)}>🗑 Excluir produto</button>}
+          {editPId && <button style={{...s.bpri,width:"100%",marginTop:8,padding:13,textAlign:"center",borderRadius:50}} onClick={async()=>{await copiarProduto(editPId);setView("list");setTab("produtos");}}>📋 Copiar produto</button>}
           <div style={{height:40}}/>
         </div>
         <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
@@ -549,6 +594,14 @@ export default function App() {
                   onChange={e => setRForm({...rForm,taxaDelivery:parseFloat(e.target.value)||0})}/>
               </div>
             </div>
+            <label style={s.lbl}>Outros custos — gás, energia, etc. (%)</label>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <input style={{...s.inp,marginBottom:0,width:90,fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:R,textAlign:"center"}}
+                type="number" min={0} step={1} placeholder="30"
+                value={rForm.outrosCustos!==undefined?rForm.outrosCustos:30}
+                onChange={e => setRForm({...rForm,outrosCustos:parseFloat(e.target.value)||0})}/>
+              <div style={{fontSize:12,color:G}}>= {fmt(c.outros)} sobre ingredientes</div>
+            </div>
             {c.porUn > 0 && <div style={{...s.tag,marginBottom:10}}>💡 {fmt(c.porUn)} × {rForm.margem||0}% margem ÷ {100-(rForm.taxaDelivery||30)}% = {fmt(c.final)}</div>}
             <label style={s.lbl}>Despesas extras (R$)</label>
             <input style={s.inp} type="number" step="0.01" placeholder="0,00" value={rForm.despesas||""} onChange={e => setRForm({...rForm,despesas:parseFloat(e.target.value)||0})}/>
@@ -656,11 +709,23 @@ export default function App() {
             </div>
             <div style={s.ph}><div style={s.phl}>🏷 Preço de venda/unidade</div><div style={s.phv}>{fmt(final)}</div></div>
             {r.precoApp > 0 && <div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC",marginBottom:7}}><div style={{...s.pl,color:"#166534"}}>✅ Preço praticado no app</div><div style={{...s.pv,color:"#166534"}}>{fmt(r.precoApp)}</div></div>}
-            <div style={{...s.pb,background:"#FFF7F9",border:"1.5px solid #FCD34D"}}><div style={{...s.pl,color:"#92400E"}}>💸 Lucro estimado (lote)</div><div style={{...s.pv,color:"#92400E"}}>{fmt(lucro)}</div></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div style={{...s.pb,background:"#FFF7F9",border:"1.5px solid #FCD34D"}}>
+                <div style={{...s.pl,color:"#92400E"}}>💸 Lucro (preço sugerido)</div>
+                <div style={{...s.pv,color:"#92400E"}}>{fmt(lucro)}</div>
+              </div>
+              {lucroApp !== null && (
+                <div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC"}}>
+                  <div style={{...s.pl,color:"#166534"}}>💸 Lucro (preço app)</div>
+                  <div style={{...s.pv,color:"#166534"}}>{fmt(lucroApp)}</div>
+                </div>
+              )}
+            </div>
           </div>
           {r.obs && <div style={s.sec}><div style={s.st}>📝 Obs</div><div style={{fontSize:13,color:G,lineHeight:1.6}}>{r.obs}</div></div>}
-          <div style={{display:"flex",gap:10,marginTop:4}}>
+          <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
             <button style={s.be} onClick={() => openEditR(r.id)}>✏️ Editar</button>
+            <button style={{...s.bpri,padding:"13px 14px"}} onClick={() => copiarReceita(r.id)}>📋 Copiar</button>
             <button style={s.bd} onClick={() => pedirExcR(r.id)}>🗑 Excluir</button>
           </div>
         </div>
@@ -678,6 +743,7 @@ export default function App() {
       <header style={s.hdr}>
         <div><div style={s.logo}>Delícias da Jay</div><div style={s.lsub}>Fichas Técnicas</div></div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
+          <button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)} title="Relatórios">📊</button>
           <button style={s.bpri} onClick={tab==="receitas" ? openNewR : openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button>
           <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout} title="Sair">🚪</button>
         </div>
@@ -732,6 +798,63 @@ export default function App() {
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
+
+      {/* ── RELATÓRIOS ── */}
+      {viewRel && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:W,borderRadius:"18px 18px 0 0",padding:20,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:V}}>📊 Relatórios</div>
+              <button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:G}} onClick={() => setViewRel(false)}>✕</button>
+            </div>
+
+            {/* Resumo receitas */}
+            <div style={{...s.sec,marginBottom:10}}>
+              <div style={s.st}>🍰 Resumo de Receitas ({recipes.length})</div>
+              {recipes.map(r => {
+                const c = calc(r, produtos);
+                return (
+                  <div key={r.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"7px 0",fontSize:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}>
+                      <span>{r.emoji} {r.nome}</span>
+                      <span style={{color:R}}>{fmt(c.final)}/un</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}>
+                      <span>Custo {fmt(c.porUn)}/un · Margem {r.margem}%</span>
+                      <span style={{color:"#92400E"}}>Lucro {fmt(c.lucro)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("receitas")}>
+                ⬇️ Exportar Receitas CSV
+              </button>
+            </div>
+
+            {/* Resumo produtos */}
+            <div style={s.sec}>
+              <div style={s.st}>📦 Resumo de Produtos ({filtP.length})</div>
+              {filtP.slice(0,20).map(p => {
+                const used = recipes.filter(r => r.ingredientes.some(i => i.produtoId === p.id)).length;
+                const pu   = p.embalagemQtd ? p.preco / p.embalagemQtd : 0;
+                return (
+                  <div key={p.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"6px 0",fontSize:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}>
+                      <span>{p.nome}</span>
+                      <span style={{color:R}}>{fmt(p.preco)}</span>
+                    </div>
+                    <div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade} · {used} receita{used!==1?"s":""}</div>
+                  </div>
+                );
+              })}
+              {filtP.length > 20 && <div style={{fontSize:11,color:G,padding:"6px 0"}}>...e mais {filtP.length-20} produtos no CSV</div>}
+              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("produtos")}>
+                ⬇️ Exportar Produtos CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
