@@ -140,6 +140,19 @@ const CSS = `
   ::-webkit-scrollbar{display:none;}
   @keyframes spin{to{transform:rotate(360deg);}}
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+
+  /* ── DESKTOP ─────────────────────────────────────────────── */
+  @media(min-width:768px){
+    body{background:#2D0F1C;}
+    .desk-root{max-width:100%!important;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .desk-body{display:flex;flex:1;overflow:hidden;}
+    .desk-side{width:360px;min-width:300px;max-width:400px;background:#fff;border-right:2px solid #F5D0D8;overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+    .desk-main{flex:1;overflow-y:auto;background:#FFF0F3;}
+    .desk-form-inner{max-width:700px;margin:0 auto;padding:20px 28px 80px;}
+    .desk-detail-inner{max-width:780px;margin:0 auto;}
+    .desk-empty{display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:12px;color:#7A4A5888;font-family:"DM Sans",sans-serif;}
+    .desk-pgrid{grid-template-columns:repeat(4,1fr)!important;}
+  }
 `;
 
 // ─── MODAL CONFIRMAÇÃO ─────────────────────────────────────────────────────
@@ -941,21 +954,12 @@ export default function App() {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // LISTA PRINCIPAL
+  // LISTA PRINCIPAL — RESPONSIVA (mobile + desktop)
   // ══════════════════════════════════════════════════════════════
-  return (
-    <div style={s.app}><style>{CSS}</style>
-      <header style={s.hdr}>
-        <div>
-          <div style={s.logo}>{negocioNome || "Fichas Técnicas"}</div>
-          <div style={s.lsub}>Fichas Técnicas</div>
-        </div>
-        <div style={{display:"flex",gap:7,alignItems:"center"}}>
-          <button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)}>📊</button>
-          <button style={s.bpri} onClick={tab==="receitas" ? openNewR : openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button>
-          <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout} title="Sair">🚪</button>
-        </div>
-      </header>
+
+  // Painel esquerdo (sidebar no desktop, tela cheia no mobile)
+  const SidePanel = () => (
+    <>
       <div style={s.tabs}>
         <button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={() => setTab("receitas")}>🍰 Receitas</button>
         <button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={() => setTab("produtos")}>📦 Produtos</button>
@@ -967,7 +971,7 @@ export default function App() {
         {filtR.length === 0
           ? <div style={s.emp}><div style={{fontSize:46,marginBottom:10}}>🍰</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:5}}>{recipes.length===0?"Nenhuma receita":"Nada encontrado"}</div><div style={{fontSize:12,color:G,opacity:.7}}>{recipes.length===0?'Toque em "+ Receita" para começar!':"Tente outro termo."}</div></div>
           : <div style={s.list}>{filtR.map(r => { const { final } = calc(r, produtos); return (
-              <div key={r.id} style={s.card} className="ch" onClick={() => openDet(r.id)}>
+              <div key={r.id} style={{...s.card,...(detailId===r.id?{borderColor:R,background:"#FFF7F9"}:{})}} className="ch" onClick={() => openDet(r.id)}>
                 <div style={s.cem}>{r.emoji}</div>
                 <div style={s.cbd}><div style={s.cnm}>{r.nome}</div><div style={s.cmt}>{r.categoria||"Sem categoria"} · rend. {r.rendimento} un.</div></div>
                 <div style={s.cpr}><div style={s.cpv}>{fmt(final)}</div><div style={s.cpl}>p/ unidade</div></div>
@@ -995,6 +999,108 @@ export default function App() {
           );
         })}</div>
       </>}
+    </>
+  );
+
+  // Painel direito — detalhe ou formulário (só aparece no desktop quando algo está selecionado)
+  const MainPanel = () => {
+    if (view === "detail") {
+      const r = recipes.find(r => r.id === detailId);
+      if (!r) return <div className="desk-empty"><div style={{fontSize:48}}>🍰</div><div>Selecione uma receita</div></div>;
+      const { ci, outros, total, porUn, semT, taxa, final, lucro, lucroApp } = calc(r, produtos);
+      return (
+        <div className="desk-detail-inner">
+          <div style={s.dh}>
+            <button style={s.bback} onClick={() => { setView("list"); setTab("receitas"); }}>← Voltar</button>
+            <div style={{fontSize:44,marginBottom:7,marginTop:10}}>{r.emoji}</div>
+            <div style={s.dn}>{r.nome}</div>
+            <div style={s.dc}>{r.categoria||"Sem categoria"} · {r.rendimento} unidade{r.rendimento!==1?"s":""}</div>
+          </div>
+          <div style={s.db}>
+            <div style={s.sec}>
+              <div style={s.st}>🧂 Ingredientes</div>
+              {r.ingredientes.map((ing,i) => {
+                const p = produtos.find(p => p.id === ing.produtoId);
+                if (!p) return null;
+                return (
+                  <div key={i} style={s.ir}>
+                    <div><div style={{fontWeight:500,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:G,marginTop:1}}>{ing.usadoQtd}{p.unidade} · {fmt(p.preco)}/{p.embalagemQtd}{p.unidade}</div></div>
+                    <div style={s.icost}>{fmt((p.preco/p.embalagemQtd)*ing.usadoQtd)}</div>
+                  </div>
+                );
+              })}
+              <div style={{...s.ir,borderTop:`2px solid ${RC}`,marginTop:5,paddingTop:7}}><div style={{fontWeight:700}}>Custo ingredientes</div><div style={s.icost}>{fmt(ci)}</div></div>
+              <div style={s.ir}><div>Outros custos ({r.outrosCustos||30}%)</div><div style={s.icost}>{fmt(outros)}</div></div>
+              {r.despesas > 0 && <div style={s.ir}><div>Despesas extras</div><div style={s.icost}>{fmt(r.despesas)}</div></div>}
+              <div style={{...s.ir,fontWeight:700}}><div>Custo total</div><div style={s.icost}>{fmt(total)}</div></div>
+            </div>
+            <div style={s.sec}>
+              <div style={s.st}>💰 Precificação</div>
+              <div style={{...s.pg}} className="desk-pgrid">
+                <div style={s.pb}><div style={s.pl}>Custo/unidade</div><div style={s.pv}>{fmt(porUn)}</div></div>
+                <div style={s.pb}><div style={s.pl}>Margem</div><div style={s.pv}>{r.margem}%</div></div>
+                <div style={s.pb}><div style={s.pl}>Preço s/ taxa</div><div style={s.pv}>{fmt(semT)}</div></div>
+                <div style={s.pb}><div style={s.pl}>Taxa delivery ({r.taxaDelivery}%)</div><div style={s.pv}>{fmt(taxa)}</div></div>
+              </div>
+              <div style={s.ph}><div style={s.phl}>🏷 Preço de venda/unidade</div><div style={s.phv}>{fmt(final)}</div></div>
+              {r.precoApp > 0 && <div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC",marginBottom:7}}><div style={{...s.pl,color:"#166534"}}>✅ Preço praticado no app</div><div style={{...s.pv,color:"#166534"}}>{fmt(r.precoApp)}</div></div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div style={{...s.pb,background:"#FFF7F9",border:"1.5px solid #FCD34D"}}><div style={{...s.pl,color:"#92400E"}}>💸 Lucro (preço sugerido)</div><div style={{...s.pv,color:"#92400E"}}>{fmt(lucro)}</div></div>
+                {lucroApp !== null && <div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC"}}><div style={{...s.pl,color:"#166534"}}>💸 Lucro (preço app)</div><div style={{...s.pv,color:"#166534"}}>{fmt(lucroApp)}</div></div>}
+              </div>
+            </div>
+            {r.obs && <div style={s.sec}><div style={s.st}>📝 Obs</div><div style={{fontSize:13,color:G,lineHeight:1.6}}>{r.obs}</div></div>}
+            <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+              <button style={s.be} onClick={() => openEditR(r.id)}>✏️ Editar</button>
+              <button style={{...s.bpri,padding:"13px 14px"}} onClick={() => copiarReceita(r.id)}>📋 Copiar</button>
+              <button style={s.bd} onClick={() => pedirExcR(r.id)}>🗑 Excluir</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    // Estado padrão: nada selecionado
+    return (
+      <div className="desk-empty" style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12,color:`${G}88`,fontFamily:"'DM Sans',sans-serif"}}>
+        <div style={{fontSize:52}}>🍰</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:G}}>Selecione uma receita</div>
+        <div style={{fontSize:12}}>ou clique em + Receita para criar</div>
+      </div>
+    );
+  };
+
+  // ─── RETURN RESPONSIVO ─────────────────────────────────────
+  return (
+    <div style={{...s.app,maxWidth:"100%"}} className="desk-root"><style>{CSS}</style>
+
+      {/* HEADER — igual em mobile e desktop */}
+      <header style={{...s.hdr,maxWidth:"100%"}} className="desk-hdr">
+        <div>
+          <div style={s.logo}>{negocioNome || "Fichas Técnicas"}</div>
+          <div style={s.lsub}>Fichas Técnicas</div>
+        </div>
+        <div style={{display:"flex",gap:7,alignItems:"center"}}>
+          <button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)}>📊</button>
+          <button style={s.bpri} onClick={tab==="receitas" ? openNewR : openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button>
+          <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout} title="Sair">🚪</button>
+        </div>
+      </header>
+
+      {/* BODY — no mobile é coluna simples, no desktop é 2 colunas */}
+      <div className="desk-body" style={{display:"flex",flex:1,overflow:"hidden"}}>
+
+        {/* SIDEBAR ESQUERDA */}
+        <div className="desk-side" style={{...s.app,maxWidth:480,minWidth:0,flexShrink:0}}>
+          <SidePanel />
+        </div>
+
+        {/* CONTEÚDO DIREITO — só aparece no desktop via CSS */}
+        <div className="desk-main" style={{flex:1,overflowY:"auto",background:CR}}>
+          <MainPanel />
+        </div>
+
+      </div>
+
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
