@@ -4,7 +4,20 @@ import { createClient } from "@supabase/supabase-js";
 // ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
 const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
 const SUPA_ANON = import.meta.env.VITE_SUPA_ANON;
-const supabase  = createClient(SUPA_URL, SUPA_ANON);
+
+// Configuração explícita para evitar o bug do navigatorLock travado
+// que acontece quando o usuário sai e volta ao app
+const supabase = createClient(SUPA_URL, SUPA_ANON, {
+  auth: {
+    persistSession:    true,
+    autoRefreshToken:  true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: "delicias-jay-auth",
+    // Desabilita o lock que causa o "navigatorLock acquire timed out"
+    lock: async (name, acquireTimeout, fn) => await fn(),
+  },
+});
 
 // ─── PRODUTOS SEED ────────────────────────────────────────────────────────
 const SEED_PRODUTOS = [
@@ -238,11 +251,16 @@ export default function App() {
 
     // Timeout de segurança — se travar, limpa sessão e volta ao login
     const timeout = setTimeout(async () => {
-      console.warn("⚠️ Timeout — sessão pode estar expirada, fazendo logout");
+      console.warn("⚠️ Timeout — limpando sessão");
       try {
         await supabase.auth.signOut({ scope: "local" });
+      } catch (e) { /* ignora */ }
+      // Limpa qualquer chave de auth do localStorage
+      try {
         Object.keys(localStorage).forEach(k => {
-          if (k.startsWith("sb-")) localStorage.removeItem(k);
+          if (k.startsWith("sb-") || k.includes("delicias-jay-auth") || k.includes("supabase")) {
+            localStorage.removeItem(k);
+          }
         });
       } catch (e) { /* ignora */ }
       setUser(null); setNegocioId(null); setNegocioNome("");
@@ -250,7 +268,7 @@ export default function App() {
       setReceitasRowId(null); setProdutosRowId(null);
       setLoading(false);
       setAppReady(true);
-    }, 12000);
+    }, 8000);
 
     try {
       const { nId, nNome } = await setupNegocio(sessionUser.id, sessionUser.user_metadata);
@@ -388,7 +406,9 @@ export default function App() {
     // Limpeza forçada — remove qualquer chave do Supabase do navegador
     try {
       Object.keys(localStorage).forEach(k => {
-        if (k.startsWith("sb-")) localStorage.removeItem(k);
+        if (k.startsWith("sb-") || k.includes("delicias-jay-auth") || k.includes("supabase")) {
+          localStorage.removeItem(k);
+        }
       });
     } catch (e) { /* ignora */ }
     // Reset manual do estado (caso o listener não dispare)
