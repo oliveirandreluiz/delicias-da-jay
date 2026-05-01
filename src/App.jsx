@@ -1056,7 +1056,8 @@ export default function App() {
                   </div>
                   <div style={{color:RL,fontFamily:"'Playfair Display',serif",fontSize:13,fontWeight:700,flexShrink:0}}>{fmt(final)}</div>
                 </div>
-              );})}
+              );})
+          )}
           {tab === "produtos" && (
             filtP.length === 0
               ? <div style={{textAlign:"center",padding:"40px 16px",color:"rgba(255,255,255,.3)",fontSize:13}}>Nenhum produto encontrado</div>
