@@ -1,0 +1,7 @@
+# Copie este arquivo para .env e preencha com seus valores reais
+# NUNCA envie o arquivo .env para o GitHub
+
+VITE_SUPA_URL=https://SEU_PROJETO.supabase.co
+VITE_SUPA_ANON=sua_chave_anon_aqui
+
+# VITE_APP_SENHA foi removido — o login agora é feito via Supabase Auth
