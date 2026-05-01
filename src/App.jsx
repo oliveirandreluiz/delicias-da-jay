@@ -4,7 +4,20 @@ import { createClient } from "@supabase/supabase-js";
 // ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
 const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
 const SUPA_ANON = import.meta.env.VITE_SUPA_ANON;
-const supabase  = createClient(SUPA_URL, SUPA_ANON);
+
+// Configuração explícita para evitar o bug do navigatorLock travado
+// que acontece quando o usuário sai e volta ao app
+const supabase = createClient(SUPA_URL, SUPA_ANON, {
+  auth: {
+    persistSession:    true,
+    autoRefreshToken:  true,
+    detectSessionInUrl: true,
+    storage: window.localStorage,
+    storageKey: "delicias-jay-auth",
+    // Desabilita o lock que causa o "navigatorLock acquire timed out"
+    lock: async (name, acquireTimeout, fn) => await fn(),
+  },
+});
 
 // ─── PRODUTOS SEED ────────────────────────────────────────────────────────
 const SEED_PRODUTOS = [
@@ -236,12 +249,26 @@ export default function App() {
   async function loadUserData(sessionUser) {
     setLoading(true);
 
-    // Timeout de segurança — nunca trava infinitamente
-    const timeout = setTimeout(() => {
-      console.warn("⚠️ Timeout ao carregar dados — verifique conexão");
+    // Timeout de segurança — se travar, limpa sessão e volta ao login
+    const timeout = setTimeout(async () => {
+      console.warn("⚠️ Timeout — limpando sessão");
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch (e) { /* ignora */ }
+      // Limpa qualquer chave de auth do localStorage
+      try {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith("sb-") || k.includes("delicias-jay-auth") || k.includes("supabase")) {
+            localStorage.removeItem(k);
+          }
+        });
+      } catch (e) { /* ignora */ }
+      setUser(null); setNegocioId(null); setNegocioNome("");
+      setRecipes([]); setProdutos([]);
+      setReceitasRowId(null); setProdutosRowId(null);
       setLoading(false);
       setAppReady(true);
-    }, 12000);
+    }, 8000);
 
     try {
       const { nId, nNome } = await setupNegocio(sessionUser.id, sessionUser.user_metadata);
@@ -274,9 +301,14 @@ export default function App() {
   }
 
   // ── LISTENER DE AUTH ──
+  // Só carrega dados na PRIMEIRA vez que detecta usuário logado.
+  // Refresh de token e re-emissões de SIGNED_IN são ignorados para não causar loop.
   useEffect(() => {
+    let dadosCarregados = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") {
+        dadosCarregados = false;
         setUser(null); setNegocioId(null); setNegocioNome("");
         setRecipes([]); setProdutos([]);
         setReceitasRowId(null); setProdutosRowId(null);
@@ -284,11 +316,24 @@ export default function App() {
         setAppReady(true);
         return;
       }
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        setUser(session.user);
-        await loadUserData(session.user);
+
+      // Ignora eventos de refresh de token — não recarrega nada
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         return;
       }
+
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+        setUser(session.user);
+        // Só carrega dados na primeira vez para evitar loop
+        if (!dadosCarregados) {
+          dadosCarregados = true;
+          await loadUserData(session.user);
+        } else {
+          setAppReady(true);
+        }
+        return;
+      }
+
       // Sessão nula no carregamento inicial = não logado
       if (event === "INITIAL_SESSION" && !session) {
         setAppReady(true);
@@ -350,8 +395,29 @@ export default function App() {
     setAuthLoading(false);
   };
 
-  // ── LOGOUT ──
-  const fazerLogout = () => supabase.auth.signOut();
+  // ── LOGOUT ROBUSTO ──
+  // Força limpeza local mesmo se signOut falhar no servidor
+  const fazerLogout = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (e) {
+      console.warn("Erro no signOut, limpando manualmente:", e);
+    }
+    // Limpeza forçada — remove qualquer chave do Supabase do navegador
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith("sb-") || k.includes("delicias-jay-auth") || k.includes("supabase")) {
+          localStorage.removeItem(k);
+        }
+      });
+    } catch (e) { /* ignora */ }
+    // Reset manual do estado (caso o listener não dispare)
+    setUser(null); setNegocioId(null); setNegocioNome("");
+    setRecipes([]); setProdutos([]);
+    setReceitasRowId(null); setProdutosRowId(null);
+    setView("list"); setTab("receitas"); setAuthView("login");
+    setAuthForm({ email:"", senha:"", nomeNegocio:"" });
+  };
 
   // ── PRODUTO CRUD ──
   const blankP    = () => ({ id: Date.now().toString(), nome:"", preco:"", embalagemQtd:"", unidade:"g", categoria:"Secos" });
