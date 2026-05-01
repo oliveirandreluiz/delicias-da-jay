@@ -236,9 +236,18 @@ export default function App() {
   async function loadUserData(sessionUser) {
     setLoading(true);
 
-    // Timeout de segurança — nunca trava infinitamente
-    const timeout = setTimeout(() => {
-      console.warn("⚠️ Timeout ao carregar dados — verifique conexão");
+    // Timeout de segurança — se travar, limpa sessão e volta ao login
+    const timeout = setTimeout(async () => {
+      console.warn("⚠️ Timeout — sessão pode estar expirada, fazendo logout");
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith("sb-")) localStorage.removeItem(k);
+        });
+      } catch (e) { /* ignora */ }
+      setUser(null); setNegocioId(null); setNegocioNome("");
+      setRecipes([]); setProdutos([]);
+      setReceitasRowId(null); setProdutosRowId(null);
       setLoading(false);
       setAppReady(true);
     }, 12000);
@@ -350,8 +359,27 @@ export default function App() {
     setAuthLoading(false);
   };
 
-  // ── LOGOUT ──
-  const fazerLogout = () => supabase.auth.signOut();
+  // ── LOGOUT ROBUSTO ──
+  // Força limpeza local mesmo se signOut falhar no servidor
+  const fazerLogout = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (e) {
+      console.warn("Erro no signOut, limpando manualmente:", e);
+    }
+    // Limpeza forçada — remove qualquer chave do Supabase do navegador
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith("sb-")) localStorage.removeItem(k);
+      });
+    } catch (e) { /* ignora */ }
+    // Reset manual do estado (caso o listener não dispare)
+    setUser(null); setNegocioId(null); setNegocioNome("");
+    setRecipes([]); setProdutos([]);
+    setReceitasRowId(null); setProdutosRowId(null);
+    setView("list"); setTab("receitas"); setAuthView("login");
+    setAuthForm({ email:"", senha:"", nomeNegocio:"" });
+  };
 
   // ── PRODUTO CRUD ──
   const blankP    = () => ({ id: Date.now().toString(), nome:"", preco:"", embalagemQtd:"", unidade:"g", categoria:"Secos" });
