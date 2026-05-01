@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── PRODUTOS ──────────────────────────────────────────────────────────────
+// ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
+const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
+const SUPA_ANON = import.meta.env.VITE_SUPA_ANON;
+const supabase  = createClient(SUPA_URL, SUPA_ANON);
+
+// ─── PRODUTOS SEED ────────────────────────────────────────────────────────
 const SEED_PRODUTOS = [
   { id:"p-01", nome:"Farinha de trigo",          preco:6.99,   embalagemQtd:1000,  unidade:"g",  categoria:"Secos" },
   { id:"p-02", nome:"Farinha de trigo Globo",    preco:2.49,   embalagemQtd:1000,  unidade:"g",  categoria:"Secos" },
@@ -8,71 +14,18 @@ const SEED_PRODUTOS = [
   { id:"p-04", nome:"Açúcar mascavo",            preco:10.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Secos" },
   { id:"p-05", nome:"Fermento",                  preco:4.99,   embalagemQtd:100,   unidade:"g",  categoria:"Secos" },
   { id:"p-06", nome:"Essência de baunilha",      preco:7.00,   embalagemQtd:30,    unidade:"ml", categoria:"Secos" },
-  { id:"p-07", nome:"Flocão de milho",           preco:3.99,   embalagemQtd:500,   unidade:"g",  categoria:"Secos" },
-  { id:"p-08", nome:"Coco ralado 50g",           preco:2.99,   embalagemQtd:50,    unidade:"g",  categoria:"Secos" },
-  { id:"p-09", nome:"Coco ralado 1kg",           preco:29.69,  embalagemQtd:1000,  unidade:"g",  categoria:"Secos" },
   { id:"p-10", nome:"Leite condensado",          preco:6.39,   embalagemQtd:395,   unidade:"g",  categoria:"Laticínios" },
   { id:"p-11", nome:"Creme de leite",            preco:2.65,   embalagemQtd:200,   unidade:"g",  categoria:"Laticínios" },
-  { id:"p-12", nome:"Leite integral",            preco:5.00,   embalagemQtd:1000,  unidade:"ml", categoria:"Laticínios" },
-  { id:"p-13", nome:"Leite Ninho",               preco:18.00,  embalagemQtd:380,   unidade:"g",  categoria:"Laticínios" },
-  { id:"p-14", nome:"Leite em pó 1kg",           preco:35.89,  embalagemQtd:1000,  unidade:"g",  categoria:"Laticínios" },
-  { id:"p-15", nome:"Margarina",                 preco:13.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Laticínios" },
-  { id:"p-16", nome:"Margarina 15kg",            preco:190.00, embalagemQtd:15000, unidade:"g",  categoria:"Laticínios" },
-  { id:"p-17", nome:"Margarina Qualy 1kg",       preco:16.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Laticínios" },
-  { id:"p-18", nome:"Nescau",                    preco:21.00,  embalagemQtd:990,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-19", nome:"Nescau 2kg",                preco:45.00,  embalagemQtd:2000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-20", nome:"Cacau em pó",               preco:23.00,  embalagemQtd:200,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-21", nome:"Cacau em pó 50%",           preco:15.00,  embalagemQtd:200,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-22", nome:"Cacau 50% 1kg",             preco:60.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-23", nome:"Cacau 100%",                preco:70.00,  embalagemQtd:500,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-24", nome:"Chocolate 50% 1kg",         preco:65.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-25", nome:"Barra de chocolate",        preco:39.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-26", nome:"Barra choc. meio amargo",   preco:37.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-27", nome:"Nutella",                   preco:16.00,  embalagemQtd:140,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-28", nome:"Nutella 3kg",               preco:198.00, embalagemQtd:3000,  unidade:"g",  categoria:"Chocolates" },
-  { id:"p-29", nome:"Granulado pequeno",         preco:3.50,   embalagemQtd:50,    unidade:"g",  categoria:"Chocolates" },
-  { id:"p-30", nome:"Granulado grande",          preco:23.00,  embalagemQtd:500,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-31", nome:"Granulado Melken 400g",     preco:49.90,  embalagemQtd:400,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-32", nome:"Gotas de chocolate",        preco:10.00,  embalagemQtd:150,   unidade:"g",  categoria:"Chocolates" },
-  { id:"p-33", nome:"Brigadeiro (pronto)",       preco:2.00,   embalagemQtd:1,     unidade:"un", categoria:"Chocolates" },
   { id:"p-34", nome:"Ovos",                      preco:1.00,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-35", nome:"Óleo de soja",              preco:6.99,   embalagemQtd:900,   unidade:"ml", categoria:"Outros" },
-  { id:"p-36", nome:"Uva",                       preco:6.99,   embalagemQtd:500,   unidade:"g",  categoria:"Outros" },
-  { id:"p-37", nome:"Morango",                   preco:6.99,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-38", nome:"Milho",                     preco:3.00,   embalagemQtd:200,   unidade:"g",  categoria:"Outros" },
-  { id:"p-39", nome:"Milho verde",               preco:3.50,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-40", nome:"Frango",                    preco:17.00,  embalagemQtd:1000,  unidade:"g",  categoria:"Outros" },
-  { id:"p-41", nome:"Verduras",                  preco:5.00,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-42", nome:"Molho de tomate",           preco:2.00,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-43", nome:"Catupiry 400g",             preco:17.00,  embalagemQtd:400,   unidade:"g",  categoria:"Outros" },
-  { id:"p-44", nome:"Catupiry",                  preco:12.00,  embalagemQtd:400,   unidade:"g",  categoria:"Outros" },
-  { id:"p-45", nome:"Requeijão cremoso",         preco:6.00,   embalagemQtd:1,     unidade:"un", categoria:"Outros" },
-  { id:"p-50", nome:"Embalagem brownie",         preco:0.52,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-51", nome:"Embalagem cookies",         preco:0.05,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-52", nome:"Embalagem bolo",            preco:1.10,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-53", nome:"Embalagem bolo de pote",    preco:0.80,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-54", nome:"Embalagem delícia de uva",  preco:0.75,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-55", nome:"Embalagem tortilete",       preco:0.05,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-56", nome:"Embalagem delivery",        preco:0.57,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-57", nome:"Embalagem empadão",         preco:1.00,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-58", nome:"Cone",                      preco:0.60,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
-  { id:"p-59", nome:"Embalagem cone",            preco:0.31,   embalagemQtd:1,     unidade:"un", categoria:"Embalagens" },
 ];
-
 const SEED_RECIPES = [];
 
-// ─── SUPABASE ──────────────────────────────────────────────────────────────
-const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
-const SUPA_ANON = import.meta.env.VITE_SUPA_ANON;
-const SUPA_H    = { "apikey": SUPA_ANON, "Authorization": `Bearer ${SUPA_ANON}`, "Content-Type": "application/json" };
-const APP_SENHA = import.meta.env.VITE_APP_SENHA;
-
 // ─── CONSTANTES ────────────────────────────────────────────────────────────
-const CAT_R   = ["Brownies","Docinhos","Copo da Felicidade","Bolo no Pote","Cones Trufados","Salgados","Outro"];
-const CAT_P   = ["Secos","Laticínios","Chocolates","Embalagens","Outros"];
-const UNIDS   = ["g","kg","ml","L","un","colher","xícara"];
-const EMOJIS  = ["🍫","🧁","🎂","🍰","🍬","🍮","🥧","🍩","🍪","🥐","🫙","🌋","🍇","🌽","🧇","🥮","🍭","☕","🌮","🥚","🧀"];
-const CATEMOJI= {"Secos":"🌾","Laticínios":"🥛","Chocolates":"🍫","Embalagens":"📦","Outros":"🛒"};
+const CAT_R  = ["Brownies","Docinhos","Copo da Felicidade","Bolo no Pote","Cones Trufados","Salgados","Outro"];
+const CAT_P  = ["Secos","Laticínios","Chocolates","Embalagens","Outros"];
+const UNIDS  = ["g","kg","ml","L","un","colher","xícara"];
+const EMOJIS = ["🍫","🧁","🎂","🍰","🍬","🍮","🥧","🍩","🍪","🥐","🫙","🌋","🍇","🌽","🧇","🥮","🍭","☕","🌮","🥚","🧀"];
+const CATEMOJI = {"Secos":"🌾","Laticínios":"🥛","Chocolates":"🍫","Embalagens":"📦","Outros":"🛒"};
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 const fmt  = v => "R$ " + (parseFloat(v)||0).toFixed(2).replace(".",",");
@@ -94,14 +47,6 @@ function calc(r, prods) {
   const lucro    = (final - taxa - porUn) * r.rendimento;
   const lucroApp = r.precoApp > 0 ? (r.precoApp - (r.precoApp * tp) - porUn) * r.rendimento : null;
   return { ci, outros, total, porUn, semT, taxa, final, lucro, lucroApp };
-}
-
-async function upsert(tabela, dados) {
-  await fetch(`${SUPA_URL}/rest/v1/${tabela}`, {
-    method: "POST",
-    headers: { ...SUPA_H, "Prefer": "resolution=merge-duplicates" },
-    body: JSON.stringify({ id: 1, dados }),
-  });
 }
 
 // ─── ESTILOS ───────────────────────────────────────────────────────────────
@@ -184,7 +129,7 @@ const CSS = `
   @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 `;
 
-// ─── COMPONENTE MODAL CONFIRMAÇÃO ──────────────────────────────────────────
+// ─── MODAL CONFIRMAÇÃO ─────────────────────────────────────────────────────
 function ModalConfirm({ item, onConfirm, onCancel }) {
   if (!item) return null;
   return (
@@ -207,13 +152,25 @@ function ModalConfirm({ item, onConfirm, onCancel }) {
 
 // ─── APP PRINCIPAL ─────────────────────────────────────────────────────────
 export default function App() {
-  // ── STATE ──
-  const [authed,     setAuthed]     = useState(!!sessionStorage.getItem("jay_auth"));
-  const [senha,      setSenha]      = useState("");
-  const [erroLogin,  setErroLogin]  = useState(false);
+
+  // ── AUTH STATE ──
+  const [appReady,    setAppReady]    = useState(false);
+  const [user,        setUser]        = useState(null);
+  const [negocioId,   setNegocioId]   = useState(null);
+  const [negocioNome, setNegocioNome] = useState("");
+  const [authView,    setAuthView]    = useState("login");
+  const [authForm,    setAuthForm]    = useState({ email:"", senha:"", nomeNegocio:"" });
+  const [authError,   setAuthError]   = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // ── DATA ROW IDs ──
+  const [receitasRowId, setReceitasRowId] = useState(null);
+  const [produtosRowId, setProdutosRowId] = useState(null);
+
+  // ── APP STATE ──
   const [recipes,    setRecipes]    = useState([]);
   const [produtos,   setProdutos]   = useState([]);
-  const [loading,    setLoading]    = useState(true);
+  const [loading,    setLoading]    = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [tab,        setTab]        = useState("receitas");
   const [view,       setView]       = useState("list");
@@ -229,46 +186,172 @@ export default function App() {
   const [editPId,    setEditPId]    = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [quickP,     setQuickP]     = useState(null);
-  const [viewRel,    setViewRel]    = useState(false); // tela relatórios
+  const [viewRel,    setViewRel]    = useState(false);
 
   // ── HELPERS ──
   const toast_ = useCallback(msg => { setToast(msg); setTimeout(() => setToast(""), 2800); }, []);
-  const saveR  = useCallback(async d => { setSaving(true); await upsert("receitas", d); setSaving(false); }, []);
-  const saveP  = useCallback(async d => { setSaving(true); await upsert("produtos",  d); setSaving(false); }, []);
 
-  // ── LOAD ──
-  useEffect(() => {
-    if (!authed) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const [rr, pr] = await Promise.all([
-          fetch(`${SUPA_URL}/rest/v1/receitas?select=dados`, { headers: SUPA_H }),
-          fetch(`${SUPA_URL}/rest/v1/produtos?select=dados`,  { headers: SUPA_H }),
-        ]);
-        const rj = await rr.json();
-        const pj = await pr.json();
-        const rd = rj.length > 0 ? rj[0].dados : null;
-        const pd = pj.length > 0 ? pj[0].dados : null;
-        setRecipes(rd || SEED_RECIPES);
-        setProdutos(pd || SEED_PRODUTOS);
-        if (!rd) await upsert("receitas", SEED_RECIPES);
-        if (!pd) await upsert("produtos",  SEED_PRODUTOS);
-      } catch (e) {
-        console.error(e);
-        setRecipes(SEED_RECIPES);
-        setProdutos(SEED_PRODUTOS);
-      }
+  // ── SETUP NEGÓCIO ──
+  // Duas queries separadas — evita problema de RLS com join implícito
+  async function setupNegocio(userId, userMeta) {
+    // 1. Busca apenas o negocio_id do membro
+    const { data: membro, error: errMembro } = await supabase
+      .from("membros")
+      .select("negocio_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (errMembro) throw new Error("Erro ao buscar membro: " + errMembro.message);
+
+    if (membro?.negocio_id) {
+      // 2. Busca o nome do negócio separadamente
+      const { data: negocio } = await supabase
+        .from("negocios")
+        .select("nome")
+        .eq("id", membro.negocio_id)
+        .maybeSingle();
+      return { nId: membro.negocio_id, nNome: negocio?.nome || "Meu Negócio" };
+    }
+
+    // Primeiro login — cria negócio novo
+    const nomeNegocio = userMeta?.nome_negocio || "Meu Negócio";
+    const { data: negocio, error: errNeg } = await supabase
+      .from("negocios")
+      .insert({ nome: nomeNegocio })
+      .select("id")
+      .single();
+
+    if (errNeg) throw new Error("Erro ao criar negócio: " + errNeg.message);
+
+    const { error: errMem } = await supabase
+      .from("membros")
+      .insert({ negocio_id: negocio.id, user_id: userId, papel: "dono" });
+
+    if (errMem) throw new Error("Erro ao criar membro: " + errMem.message);
+
+    return { nId: negocio.id, nNome: nomeNegocio };
+  }
+
+  // ── CARREGA DADOS ──
+  async function loadUserData(sessionUser) {
+    setLoading(true);
+
+    // Timeout de segurança — nunca trava infinitamente
+    const timeout = setTimeout(() => {
+      console.warn("⚠️ Timeout ao carregar dados — verifique conexão");
       setLoading(false);
-    })();
-  }, [authed]);
+      setAppReady(true);
+    }, 12000);
+
+    try {
+      const { nId, nNome } = await setupNegocio(sessionUser.id, sessionUser.user_metadata);
+      setNegocioId(nId);
+      setNegocioNome(nNome);
+
+      const [{ data: rData, error: rErr }, { data: pData, error: pErr }] = await Promise.all([
+        supabase.from("receitas").select("id, dados").eq("negocio_id", nId).maybeSingle(),
+        supabase.from("produtos").select("id, dados").eq("negocio_id", nId).maybeSingle(),
+      ]);
+
+      if (rErr) console.error("Erro receitas:", rErr);
+      if (pErr) console.error("Erro produtos:", pErr);
+
+      if (rData?.id) { setReceitasRowId(rData.id); setRecipes(rData.dados || []); }
+      else            { setRecipes(SEED_RECIPES); }
+
+      if (pData?.id) { setProdutosRowId(pData.id); setProdutos(pData.dados || []); }
+      else            { setProdutos(SEED_PRODUTOS); }
+
+    } catch (e) {
+      console.error("Erro ao carregar dados:", e);
+      setRecipes(SEED_RECIPES);
+      setProdutos(SEED_PRODUTOS);
+    }
+
+    clearTimeout(timeout);
+    setLoading(false);
+    setAppReady(true);
+  }
+
+  // ── LISTENER DE AUTH ──
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null); setNegocioId(null); setNegocioNome("");
+        setRecipes([]); setProdutos([]);
+        setReceitasRowId(null); setProdutosRowId(null);
+        setView("list"); setTab("receitas");
+        setAppReady(true);
+        return;
+      }
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+        setUser(session.user);
+        await loadUserData(session.user);
+        return;
+      }
+      // Sessão nula no carregamento inicial = não logado
+      if (event === "INITIAL_SESSION" && !session) {
+        setAppReady(true);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line
+
+  // ── SALVAR ──
+  const saveR = useCallback(async (dados) => {
+    setSaving(true);
+    try {
+      if (receitasRowId) {
+        await supabase.from("receitas").update({ dados, atualizado_em: new Date().toISOString() }).eq("id", receitasRowId);
+      } else {
+        const { data } = await supabase.from("receitas").insert({ negocio_id: negocioId, dados }).select("id").single();
+        if (data) setReceitasRowId(data.id);
+      }
+    } catch(e) { console.error("Erro ao salvar receitas:", e); }
+    setSaving(false);
+  }, [receitasRowId, negocioId]);
+
+  const saveP = useCallback(async (dados) => {
+    setSaving(true);
+    try {
+      if (produtosRowId) {
+        await supabase.from("produtos").update({ dados, atualizado_em: new Date().toISOString() }).eq("id", produtosRowId);
+      } else {
+        const { data } = await supabase.from("produtos").insert({ negocio_id: negocioId, dados }).select("id").single();
+        if (data) setProdutosRowId(data.id);
+      }
+    } catch(e) { console.error("Erro ao salvar produtos:", e); }
+    setSaving(false);
+  }, [produtosRowId, negocioId]);
 
   // ── LOGIN ──
-  const fazerLogin  = () => {
-    if (senha === APP_SENHA) { sessionStorage.setItem("jay_auth","1"); setAuthed(true); }
-    else { setErroLogin(true); setTimeout(() => setErroLogin(false), 2000); }
+  const fazerLogin = async () => {
+    if (!authForm.email || !authForm.senha) { setAuthError("Preencha email e senha"); return; }
+    setAuthLoading(true); setAuthError("");
+    const { error } = await supabase.auth.signInWithPassword({
+      email: authForm.email.trim(), password: authForm.senha,
+    });
+    if (error) setAuthError("Email ou senha incorretos ❌");
+    setAuthLoading(false);
   };
-  const fazerLogout = () => { sessionStorage.removeItem("jay_auth"); setAuthed(false); setSenha(""); };
+
+  // ── CADASTRO ──
+  const fazerCadastro = async () => {
+    if (!authForm.nomeNegocio.trim()) { setAuthError("Informe o nome do seu negócio ⚠️"); return; }
+    if (!authForm.email.trim())       { setAuthError("Informe seu email ⚠️"); return; }
+    if (authForm.senha.length < 6)    { setAuthError("Senha deve ter ao menos 6 caracteres ⚠️"); return; }
+    setAuthLoading(true); setAuthError("");
+    const { error } = await supabase.auth.signUp({
+      email: authForm.email.trim(), password: authForm.senha,
+      options: { data: { nome_negocio: authForm.nomeNegocio.trim() } },
+    });
+    if (error) setAuthError(error.message);
+    else       setAuthView("emailConfirm");
+    setAuthLoading(false);
+  };
+
+  // ── LOGOUT ──
+  const fazerLogout = () => supabase.auth.signOut();
 
   // ── PRODUTO CRUD ──
   const blankP    = () => ({ id: Date.now().toString(), nome:"", preco:"", embalagemQtd:"", unidade:"g", categoria:"Secos" });
@@ -276,10 +359,10 @@ export default function App() {
   const openEditP = id => { setPForm({...produtos.find(p => p.id === id)}); setEditPId(id); setView("pForm"); };
 
   const saveProd = async () => {
-    if (!pForm.nome.trim())    { toast_("⚠️ Informe o nome");              return; }
-    if (!pForm.preco)           { toast_("⚠️ Informe o preço");             return; }
-    if (!pForm.embalagemQtd)    { toast_("⚠️ Informe o tamanho");           return; }
-    const c = { ...pForm, preco: parseFloat(pForm.preco)||0, embalagemQtd: parseFloat(pForm.embalagemQtd)||1 };
+    if (!pForm.nome.trim())  { toast_("⚠️ Informe o nome");    return; }
+    if (!pForm.preco)         { toast_("⚠️ Informe o preço");   return; }
+    if (!pForm.embalagemQtd)  { toast_("⚠️ Informe o tamanho"); return; }
+    const c  = { ...pForm, preco: parseFloat(pForm.preco)||0, embalagemQtd: parseFloat(pForm.embalagemQtd)||1 };
     const up = editPId ? produtos.map(p => p.id === editPId ? c : p) : [...produtos, c];
     setProdutos(up); await saveP(up);
     toast_("✅ Produto salvo!"); setView("list"); setTab("produtos");
@@ -323,33 +406,29 @@ export default function App() {
   };
 
   // ── COPIAR ──
-  const copiarReceita = async id => {
+  const copiarReceita = id => {
     const r = recipes.find(r => r.id === id);
-    const copia = { ...JSON.parse(JSON.stringify(r)), id: Date.now().toString(), nome: `Cópia de ${r.nome}` };
-    // Abre formulário de edição com a cópia para revisar antes de salvar
-    setRForm(copia); setEditId(null); setView("rForm");
-    toast_("📋 Revise e salve a cópia!");
+    setRForm({ ...JSON.parse(JSON.stringify(r)), id: Date.now().toString(), nome: `Cópia de ${r.nome}` });
+    setEditId(null); setView("rForm"); toast_("📋 Revise e salve a cópia!");
   };
-  const copiarProduto = async id => {
+  const copiarProduto = id => {
     const p = produtos.find(p => p.id === id);
-    const copia = { ...p, id: Date.now().toString(), nome: `Cópia de ${p.nome}`, preco: String(p.preco), embalagemQtd: String(p.embalagemQtd) };
-    // Abre formulário de edição com a cópia para revisar antes de salvar
-    setPForm(copia); setEditPId(null); setView("pForm");
-    toast_("📋 Revise e salve a cópia!");
+    setPForm({ ...p, id: Date.now().toString(), nome: `Cópia de ${p.nome}`, preco: String(p.preco), embalagemQtd: String(p.embalagemQtd) });
+    setEditPId(null); setView("pForm"); toast_("📋 Revise e salve a cópia!");
   };
 
   // ── EXPORTAR CSV ──
   const exportarCSV = (tipo) => {
     let csv = "", nome = "";
     if (tipo === "receitas") {
-      nome = "receitas_delicias_da_jay.csv";
+      nome = "receitas.csv";
       csv = "Nome;Categoria;Rendimento;Margem%;Taxa Delivery%;Custo Total;Custo/Unidade;Preço Sugerido/Un;Preço Praticado;Lucro Estimado Lote\n";
       recipes.forEach(r => {
         const c = calc(r, produtos);
         csv += `"${r.nome}";"${r.categoria||""}";"${r.rendimento}";"${r.margem}";"${r.taxaDelivery}";"${fmtN(c.total)}";"${fmtN(c.porUn)}";"${fmtN(c.final)}";"${fmtN(r.precoApp)}";"${fmtN(c.lucro)}"\n`;
       });
     } else {
-      nome = "produtos_delicias_da_jay.csv";
+      nome = "produtos.csv";
       csv = "Nome;Categoria;Unidade;Preço Embalagem;Qtd Embalagem;Custo por Unidade;Usado em Receitas\n";
       filtP.forEach(p => {
         const used = recipes.filter(r => r.ingredientes.some(i => i.produtoId === p.id)).length;
@@ -375,38 +454,113 @@ export default function App() {
     .sort((a,b) => a.nome.localeCompare(b.nome));
 
   // ══════════════════════════════════════════════════════════════
-  // TELA DE LOGIN
+  // SPLASH INICIAL
   // ══════════════════════════════════════════════════════════════
-  if (!authed) return (
+  if (!appReady) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:V}}>
+      <style>{CSS}</style>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:52,marginBottom:10}}>🍫</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:22,marginBottom:5}}>Delícias da Jay</div>
+        <div style={{width:28,height:28,border:`3px solid ${R}44`,borderTop:`3px solid ${R}`,borderRadius:"50%",animation:"spin 1s linear infinite",margin:"16px auto 0"}}></div>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // TELA: EMAIL CONFIRMADO
+  // ══════════════════════════════════════════════════════════════
+  if (!user && authView === "emailConfirm") return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:V}}>
       <style>{CSS}</style>
       <div style={{textAlign:"center",padding:"0 32px",width:"100%",maxWidth:380}}>
-        <div style={{fontSize:60,marginBottom:14}}>🍰</div>
-        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:26,marginBottom:5}}>Delícias da Jay</div>
-        <div style={{color:`${R}88`,fontSize:12,marginBottom:32,letterSpacing:".1em",textTransform:"uppercase"}}>Fichas Técnicas</div>
-        <input
-          style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${erroLogin?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.15)",fontSize:15,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",letterSpacing:".15em",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif",animation:erroLogin?"shake .3s":""}}
-          type="password" placeholder="Digite sua senha" value={senha}
-          onChange={e => { setSenha(e.target.value); setErroLogin(false); }}
-          onKeyDown={e => e.key === "Enter" && fazerLogin()}
-        />
-        {erroLogin && <div style={{color:"#ff8fa3",fontSize:12,marginBottom:10}}>Senha incorreta ❌</div>}
-        <button style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${R},${RL})`,color:W,fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,cursor:"pointer"}} onClick={fazerLogin}>
-          Entrar
+        <div style={{fontSize:60,marginBottom:14}}>📧</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:22,marginBottom:10}}>Verifique seu email</div>
+        <div style={{color:`${RL}bb`,fontSize:14,lineHeight:1.7,marginBottom:28}}>
+          Enviamos um link de confirmação para<br/>
+          <strong style={{color:RL}}>{authForm.email}</strong><br/><br/>
+          Clique no link do email para ativar sua conta e depois volte aqui para entrar.
+        </div>
+        <button style={{background:"rgba(255,255,255,.12)",border:`1px solid ${R}55`,color:RL,borderRadius:50,padding:"11px 24px",fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+          onClick={() => setAuthView("login")}>
+          Voltar para o login
         </button>
       </div>
     </div>
   );
 
   // ══════════════════════════════════════════════════════════════
-  // SPLASH
+  // TELA: CADASTRO
+  // ══════════════════════════════════════════════════════════════
+  if (!user && authView === "cadastro") return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:V}}>
+      <style>{CSS}</style>
+      <div style={{textAlign:"center",padding:"0 32px",width:"100%",maxWidth:380}}>
+        <div style={{fontSize:52,marginBottom:10}}>🍰</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:22,marginBottom:4}}>Criar conta</div>
+        <div style={{color:`${R}88`,fontSize:11,marginBottom:28,letterSpacing:".08em",textTransform:"uppercase"}}>Novo negócio</div>
+        <input style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${authError?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.12)",fontSize:14,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}
+          type="text" placeholder="Nome do seu negócio 🏪" value={authForm.nomeNegocio}
+          onChange={e => { setAuthForm({...authForm, nomeNegocio: e.target.value}); setAuthError(""); }}/>
+        <input style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${authError?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.12)",fontSize:14,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}
+          type="email" placeholder="Seu email" value={authForm.email}
+          onChange={e => { setAuthForm({...authForm, email: e.target.value}); setAuthError(""); }}/>
+        <input style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${authError?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.12)",fontSize:14,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}
+          type="password" placeholder="Senha (mín. 6 caracteres)" value={authForm.senha}
+          onChange={e => { setAuthForm({...authForm, senha: e.target.value}); setAuthError(""); }}
+          onKeyDown={e => e.key === "Enter" && fazerCadastro()}/>
+        {authError && <div style={{color:"#ff8fa3",fontSize:12,marginBottom:10}}>{authError}</div>}
+        <button style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${R},${RL})`,color:W,fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,cursor:"pointer",marginBottom:14}}
+          onClick={fazerCadastro} disabled={authLoading}>
+          {authLoading ? "Criando conta..." : "Criar conta"}
+        </button>
+        <button style={{background:"none",border:"none",color:`${RL}99`,fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+          onClick={() => { setAuthView("login"); setAuthError(""); }}>
+          Já tenho conta → Entrar
+        </button>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // TELA: LOGIN
+  // ══════════════════════════════════════════════════════════════
+  if (!user) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"100vh",background:V}}>
+      <style>{CSS}</style>
+      <div style={{textAlign:"center",padding:"0 32px",width:"100%",maxWidth:380}}>
+        <div style={{fontSize:60,marginBottom:14}}>🍰</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:26,marginBottom:5}}>Delícias da Jay</div>
+        <div style={{color:`${R}88`,fontSize:12,marginBottom:32,letterSpacing:".1em",textTransform:"uppercase"}}>Fichas Técnicas</div>
+        <input style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${authError?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.15)",fontSize:15,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif"}}
+          type="email" placeholder="Seu email" value={authForm.email}
+          onChange={e => { setAuthForm({...authForm, email: e.target.value}); setAuthError(""); }}/>
+        <input style={{width:"100%",padding:"13px 18px",borderRadius:50,border:`2px solid ${authError?"#ff6b6b":"#C45C7444"}`,background:"rgba(255,255,255,.15)",fontSize:15,color:W,WebkitTextFillColor:W,outline:"none",textAlign:"center",letterSpacing:".15em",boxSizing:"border-box",marginBottom:10,fontFamily:"'DM Sans',sans-serif",animation:authError?"shake .3s":""}}
+          type="password" placeholder="Senha" value={authForm.senha}
+          onChange={e => { setAuthForm({...authForm, senha: e.target.value}); setAuthError(""); }}
+          onKeyDown={e => e.key === "Enter" && fazerLogin()}/>
+        {authError && <div style={{color:"#ff8fa3",fontSize:12,marginBottom:10}}>{authError}</div>}
+        <button style={{width:"100%",padding:"13px",borderRadius:50,border:"none",background:`linear-gradient(135deg,${R},${RL})`,color:W,fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600,cursor:"pointer",marginBottom:14}}
+          onClick={fazerLogin} disabled={authLoading}>
+          {authLoading ? "Entrando..." : "Entrar"}
+        </button>
+        <button style={{background:"none",border:"none",color:`${RL}99`,fontSize:13,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}
+          onClick={() => { setAuthView("cadastro"); setAuthError(""); setAuthForm({email:"",senha:"",nomeNegocio:""}); }}>
+          Criar novo negócio →
+        </button>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════
+  // SPLASH CARREGANDO DADOS
   // ══════════════════════════════════════════════════════════════
   if (loading) return (
     <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:V}}>
       <style>{CSS}</style>
       <div style={{textAlign:"center"}}>
         <div style={{fontSize:52,marginBottom:10}}>🍫</div>
-        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:22,marginBottom:5}}>Delícias da Jay</div>
+        <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:22,marginBottom:5}}>{negocioNome || "Carregando..."}</div>
         <div style={{width:28,height:28,border:`3px solid ${R}44`,borderTop:`3px solid ${R}`,borderRadius:"50%",animation:"spin 1s linear infinite",margin:"16px auto 0"}}></div>
       </div>
     </div>
@@ -481,8 +635,6 @@ export default function App() {
           <div style={{width:70}}/>
         </header>
         <div style={s.fb}>
-
-          {/* INFO */}
           <div style={s.sec}>
             <div style={s.st}>🍰 Informações</div>
             <div style={s.er}>{EMOJIS.map(e => <button key={e} style={{...s.eb,...(rForm.emoji===e?s.ebs:{})}} onClick={() => setRForm({...rForm,emoji:e})}>{e}</button>)}</div>
@@ -498,8 +650,6 @@ export default function App() {
             <label style={s.lbl}>Observações (opcional)</label>
             <textarea style={{...s.inp,height:65,resize:"none"}} value={rForm.obs||""} onChange={e => setRForm({...rForm,obs:e.target.value})}/>
           </div>
-
-          {/* INGREDIENTES */}
           <div style={s.sec}>
             <div style={s.st}>🧂 Ingredientes</div>
             <div style={s.help}>Digite para buscar. Não encontrou? Cadastre abaixo!</div>
@@ -508,9 +658,7 @@ export default function App() {
               const cu  = p ? (p.preco / p.embalagemQtd) * ing.usadoQtd : 0;
               const bsc = p ? "" : (ing._busca || "");
               const res = bsc.trim().length > 0
-                ? produtos
-                    .filter((pr,i,self) => pr.nome.toLowerCase().includes(bsc.toLowerCase()) && self.findIndex(x => x.nome.toLowerCase()===pr.nome.toLowerCase())===i)
-                    .sort((a,b) => a.nome.localeCompare(b.nome))
+                ? produtos.filter((pr,i,self) => pr.nome.toLowerCase().includes(bsc.toLowerCase()) && self.findIndex(x => x.nome.toLowerCase()===pr.nome.toLowerCase())===i).sort((a,b) => a.nome.localeCompare(b.nome))
                 : [];
               return (
                 <div key={idx} style={s.ic}>
@@ -529,18 +677,14 @@ export default function App() {
                       </div>
                     ) : (
                       <>
-                        <input
-                          style={{...s.inp,marginBottom:0,paddingLeft:34,background:CR,borderColor:RC}}
-                          placeholder="Digite para buscar... ex: margarina"
-                          value={bsc}
-                          onChange={e => { const a=[...rForm.ingredientes]; a[idx]={...a[idx],_busca:e.target.value,produtoId:""}; setRForm({...rForm,ingredientes:a}); }}
-                        />
+                        <input style={{...s.inp,marginBottom:0,paddingLeft:34,background:CR,borderColor:RC}}
+                          placeholder="Digite para buscar... ex: margarina" value={bsc}
+                          onChange={e => { const a=[...rForm.ingredientes]; a[idx]={...a[idx],_busca:e.target.value,produtoId:""}; setRForm({...rForm,ingredientes:a}); }}/>
                         <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",fontSize:13,pointerEvents:"none"}}>🔍</span>
                         {res.length > 0 && (
                           <div style={{position:"absolute",top:"100%",left:0,right:0,background:W,border:`2px solid ${RC}`,borderRadius:10,zIndex:50,boxShadow:"0 8px 20px rgba(74,26,44,.15)",maxHeight:190,overflowY:"auto"}}>
                             {res.map(pr => (
-                              <div key={pr.id} className="po"
-                                style={{padding:"9px 12px",cursor:"pointer",borderBottom:`1px solid #FDE8ED`,fontSize:12}}
+                              <div key={pr.id} className="po" style={{padding:"9px 12px",cursor:"pointer",borderBottom:`1px solid #FDE8ED`,fontSize:12}}
                                 onClick={() => { const a=[...rForm.ingredientes]; a[idx]={...a[idx],produtoId:pr.id,_busca:pr.nome}; setRForm({...rForm,ingredientes:a}); }}>
                                 <div style={{fontWeight:600,color:V}}>{pr.nome}</div>
                                 <div style={{fontSize:10,color:G,marginTop:1}}>{pr.categoria} · R$ {fmtN(pr.preco)}/{pr.embalagemQtd}{pr.unidade}</div>
@@ -571,13 +715,11 @@ export default function App() {
               📦 Cadastrar novo produto
             </button>
           </div>
-
-          {/* PRECIFICAÇÃO */}
           <div style={s.sec}>
             <div style={s.st}>💰 Precificação</div>
             <div style={s.cs}>
               <div style={s.cr}><span>Custo ingredientes</span><strong>{fmt(c.ci)}</strong></div>
-              <div style={s.cr}><span>Outros custos (30%)</span><strong>{fmt(c.outros)}</strong></div>
+              <div style={s.cr}><span>Outros custos ({rForm.outrosCustos||30}%)</span><strong>{fmt(c.outros)}</strong></div>
               <div style={{...s.cr,fontWeight:700,borderTop:`1.5px solid ${RC}`,paddingTop:5,marginTop:3}}><span>Custo total</span><strong>{fmt(c.total)}</strong></div>
               <div style={s.cr}><span>Custo por unidade</span><strong>{fmt(c.porUn)}</strong></div>
             </div>
@@ -614,12 +756,9 @@ export default function App() {
             <label style={s.lbl}>Preço praticado no app (R$)</label>
             <input style={s.inp} type="number" step="0.01" placeholder="0,00" value={rForm.precoApp||""} onChange={e => setRForm({...rForm,precoApp:parseFloat(e.target.value)||0})}/>
           </div>
-
           <button style={s.bsave} onClick={saveRecipe}>{saving ? "Salvando..." : "✅ Salvar Receita"}</button>
           <div style={{height:40}}/>
         </div>
-
-        {/* MODAL PRODUTO RÁPIDO */}
         {quickP && (
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:300,display:"flex",alignItems:"flex-end"}} onClick={() => setQuickP(null)}>
             <div style={{background:W,borderRadius:"18px 18px 0 0",padding:18,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}} onClick={e => e.stopPropagation()}>
@@ -644,20 +783,19 @@ export default function App() {
               </div>
               <label style={s.lbl}>Qtd na embalagem ({quickP.unidade}) *</label>
               <input style={s.inp} type="number" step="any" placeholder="200" value={quickP.embalagemQtd} onChange={e => setQuickP({...quickP,embalagemQtd:e.target.value})}/>
-              {quickP.preco && quickP.embalagemQtd && <div style={s.tag}>💡 Custo por {quickP.unidade}: R$ {fmtN(parseFloat(quickP.preco)/parseFloat(quickP.embalagemQtd))}/{quickP.unidade}</div>}
+              {quickP.preco && quickP.embalagemQtd && <div style={s.tag}>💡 Custo: R$ {fmtN(parseFloat(quickP.preco)/parseFloat(quickP.embalagemQtd))}/{quickP.unidade}</div>}
               <div style={{display:"flex",gap:10,marginTop:4}}>
                 <button style={{...s.bsave,flex:1,marginTop:0}} onClick={async () => {
                   if (!quickP.nome.trim()||!quickP.preco||!quickP.embalagemQtd) { toast_("⚠️ Preencha todos os campos"); return; }
                   const c = {...quickP, preco:parseFloat(quickP.preco)||0, embalagemQtd:parseFloat(quickP.embalagemQtd)||1};
                   const up = [...produtos, c]; setProdutos(up); await saveP(up);
-                  setQuickP(null); toast_("✅ Produto cadastrado! Selecione nos ingredientes.");
+                  setQuickP(null); toast_("✅ Produto cadastrado!");
                 }}>Salvar Produto</button>
                 <button style={{...s.bd,padding:"13px 16px"}} onClick={() => setQuickP(null)}>Cancelar</button>
               </div>
             </div>
           </div>
         )}
-
         <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
         {toast && <div style={s.tst}>{toast}</div>}
       </div>
@@ -696,7 +834,7 @@ export default function App() {
               );
             })}
             <div style={{...s.ir,borderTop:`2px solid ${RC}`,marginTop:5,paddingTop:7}}><div style={{fontWeight:700}}>Custo ingredientes</div><div style={s.icost}>{fmt(ci)}</div></div>
-            <div style={s.ir}><div>Outros custos (30%)</div><div style={s.icost}>{fmt(outros)}</div></div>
+            <div style={s.ir}><div>Outros custos ({r.outrosCustos||30}%)</div><div style={s.icost}>{fmt(outros)}</div></div>
             {r.despesas > 0 && <div style={s.ir}><div>Despesas extras</div><div style={s.icost}>{fmt(r.despesas)}</div></div>}
             <div style={{...s.ir,fontWeight:700}}><div>Custo total</div><div style={s.icost}>{fmt(total)}</div></div>
           </div>
@@ -742,39 +880,35 @@ export default function App() {
   return (
     <div style={s.app}><style>{CSS}</style>
       <header style={s.hdr}>
-        <div><div style={s.logo}>Delícias da Jay</div><div style={s.lsub}>Fichas Técnicas</div></div>
+        <div>
+          <div style={s.logo}>{negocioNome || "Fichas Técnicas"}</div>
+          <div style={s.lsub}>Fichas Técnicas</div>
+        </div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
-          <button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)} title="Relatórios">📊</button>
+          <button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)}>📊</button>
           <button style={s.bpri} onClick={tab==="receitas" ? openNewR : openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button>
           <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout} title="Sair">🚪</button>
         </div>
       </header>
-
       <div style={s.tabs}>
         <button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={() => setTab("receitas")}>🍰 Receitas</button>
         <button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={() => setTab("produtos")}>📦 Produtos</button>
       </div>
-
       {tab === "receitas" && <>
         <div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar receita..." value={searchR} onChange={e => setSearchR(e.target.value)}/></div>
         <div style={s.chips}>{["Todos",...CAT_R].map(c => <button key={c} style={{...s.chip,...(catR===c?s.chipa:{})}} onClick={() => setCatR(c)}>{c}</button>)}</div>
         <div style={s.cnt}>{filtR.length} receita{filtR.length!==1?"s":""}</div>
-        {filtR.length === 0 ? (
-          <div style={s.emp}><div style={{fontSize:46,marginBottom:10}}>🍰</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:5}}>{recipes.length===0?"Nenhuma receita":"Nada encontrado"}</div><div style={{fontSize:12,color:G,opacity:.7}}>{recipes.length===0?'Toque em "+ Receita" para começar!':"Tente outro termo."}</div></div>
-        ) : (
-          <div style={s.list}>{filtR.map(r => {
-            const { final } = calc(r, produtos);
-            return (
+        {filtR.length === 0
+          ? <div style={s.emp}><div style={{fontSize:46,marginBottom:10}}>🍰</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:5}}>{recipes.length===0?"Nenhuma receita":"Nada encontrado"}</div><div style={{fontSize:12,color:G,opacity:.7}}>{recipes.length===0?'Toque em "+ Receita" para começar!':"Tente outro termo."}</div></div>
+          : <div style={s.list}>{filtR.map(r => { const { final } = calc(r, produtos); return (
               <div key={r.id} style={s.card} className="ch" onClick={() => openDet(r.id)}>
                 <div style={s.cem}>{r.emoji}</div>
                 <div style={s.cbd}><div style={s.cnm}>{r.nome}</div><div style={s.cmt}>{r.categoria||"Sem categoria"} · rend. {r.rendimento} un.</div></div>
                 <div style={s.cpr}><div style={s.cpv}>{fmt(final)}</div><div style={s.cpl}>p/ unidade</div></div>
               </div>
-            );
-          })}</div>
-        )}
+            );})}</div>
+        }
       </>}
-
       {tab === "produtos" && <>
         <div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar produto..." value={searchP} onChange={e => setSearchP(e.target.value)}/></div>
         <div style={s.chips}>{["Todos",...CAT_P].map(c => <button key={c} style={{...s.chip,...(catP===c?s.chipa:{})}} onClick={() => setCatP(c)}>{c}</button>)}</div>
@@ -795,12 +929,9 @@ export default function App() {
           );
         })}</div>
       </>}
-
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
-
-      {/* ── RELATÓRIOS ── */}
       {viewRel && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
           <div style={{background:W,borderRadius:"18px 18px 0 0",padding:20,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}>
@@ -808,50 +939,26 @@ export default function App() {
               <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:V}}>📊 Relatórios</div>
               <button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:G}} onClick={() => setViewRel(false)}>✕</button>
             </div>
-
-            {/* Resumo receitas */}
             <div style={{...s.sec,marginBottom:10}}>
               <div style={s.st}>🍰 Resumo de Receitas ({recipes.length})</div>
-              {recipes.map(r => {
-                const c = calc(r, produtos);
-                return (
-                  <div key={r.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"7px 0",fontSize:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}>
-                      <span>{r.emoji} {r.nome}</span>
-                      <span style={{color:R}}>{fmt(c.final)}/un</span>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}>
-                      <span>Custo {fmt(c.porUn)}/un · Margem {r.margem}%</span>
-                      <span style={{color:"#92400E"}}>Lucro {fmt(c.lucro)}</span>
-                    </div>
-                  </div>
-                );
-              })}
-              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("receitas")}>
-                ⬇️ Exportar Receitas CSV
-              </button>
+              {recipes.map(r => { const c = calc(r, produtos); return (
+                <div key={r.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"7px 0",fontSize:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{r.emoji} {r.nome}</span><span style={{color:R}}>{fmt(c.final)}/un</span></div>
+                  <div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}><span>Custo {fmt(c.porUn)}/un · Margem {r.margem}%</span><span style={{color:"#92400E"}}>Lucro {fmt(c.lucro)}</span></div>
+                </div>
+              );})}
+              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("receitas")}>⬇️ Exportar Receitas CSV</button>
             </div>
-
-            {/* Resumo produtos */}
             <div style={s.sec}>
               <div style={s.st}>📦 Resumo de Produtos ({filtP.length})</div>
-              {filtP.slice(0,20).map(p => {
-                const used = recipes.filter(r => r.ingredientes.some(i => i.produtoId === p.id)).length;
-                const pu   = p.embalagemQtd ? p.preco / p.embalagemQtd : 0;
-                return (
-                  <div key={p.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"6px 0",fontSize:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}>
-                      <span>{p.nome}</span>
-                      <span style={{color:R}}>{fmt(p.preco)}</span>
-                    </div>
-                    <div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade} · {used} receita{used!==1?"s":""}</div>
-                  </div>
-                );
-              })}
+              {filtP.slice(0,20).map(p => { const used = recipes.filter(r => r.ingredientes.some(i => i.produtoId === p.id)).length; const pu = p.embalagemQtd ? p.preco / p.embalagemQtd : 0; return (
+                <div key={p.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"6px 0",fontSize:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{p.nome}</span><span style={{color:R}}>{fmt(p.preco)}</span></div>
+                  <div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade} · {used} receita{used!==1?"s":""}</div>
+                </div>
+              );})}
               {filtP.length > 20 && <div style={{fontSize:11,color:G,padding:"6px 0"}}>...e mais {filtP.length-20} produtos no CSV</div>}
-              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("produtos")}>
-                ⬇️ Exportar Produtos CSV
-              </button>
+              <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={() => exportarCSV("produtos")}>⬇️ Exportar Produtos CSV</button>
             </div>
           </div>
         </div>
