@@ -283,9 +283,14 @@ export default function App() {
   }
 
   // ── LISTENER DE AUTH ──
+  // Só carrega dados na PRIMEIRA vez que detecta usuário logado.
+  // Refresh de token e re-emissões de SIGNED_IN são ignorados para não causar loop.
   useEffect(() => {
+    let dadosCarregados = false;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") {
+        dadosCarregados = false;
         setUser(null); setNegocioId(null); setNegocioNome("");
         setRecipes([]); setProdutos([]);
         setReceitasRowId(null); setProdutosRowId(null);
@@ -293,11 +298,24 @@ export default function App() {
         setAppReady(true);
         return;
       }
-      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
-        setUser(session.user);
-        await loadUserData(session.user);
+
+      // Ignora eventos de refresh de token — não recarrega nada
+      if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         return;
       }
+
+      if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) {
+        setUser(session.user);
+        // Só carrega dados na primeira vez para evitar loop
+        if (!dadosCarregados) {
+          dadosCarregados = true;
+          await loadUserData(session.user);
+        } else {
+          setAppReady(true);
+        }
+        return;
+      }
+
       // Sessão nula no carregamento inicial = não logado
       if (event === "INITIAL_SESSION" && !session) {
         setAppReady(true);
