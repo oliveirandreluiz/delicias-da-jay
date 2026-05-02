@@ -72,8 +72,8 @@ const s = {
   tabs:  { display:"flex", borderBottom:`2px solid ${RC}`, background:W },
   tab:   { flex:1, padding:"12px 8px", border:"none", background:"none", fontSize:13, fontWeight:600, color:`${G}88`, cursor:"pointer", borderBottom:"3px solid transparent", marginBottom:"-2px", fontFamily:"'DM Sans',sans-serif" },
   taba:  { color:R, borderBottomColor:R },
-  srchW: { margin:"12px 14px 0", position:"relative" },
-  srch:  { width:"100%", padding:"10px 14px 10px 36px", borderRadius:50, border:`2px solid ${RC}`, background:W, fontSize:13, color:V, outline:"none", boxSizing:"border-box", fontFamily:"'DM Sans',sans-serif" },
+  srchW: { margin:"12px 14px 0", position:"relative", display:"block" },
+  srch:  { width:"100%", padding:"10px 14px 10px 38px", borderRadius:50, border:`2px solid ${RC}`, background:CR, fontSize:13, color:V, outline:"none", boxSizing:"border-box", fontFamily:"'DM Sans',sans-serif", display:"block" },
   chips: { display:"flex", gap:8, padding:"10px 14px", overflowX:"auto", scrollbarWidth:"none" },
   chip:  { flexShrink:0, background:W, border:`2px solid ${RC}`, color:G, borderRadius:50, padding:"5px 12px", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"'DM Sans',sans-serif" },
   chipa: { background:V, borderColor:V, color:RL },
@@ -510,6 +510,55 @@ function DesktopDetail({ r, produtos, negocioNome, onEdit, onCopy, onDelete }) {
   );
 }
 
+// ─── LISTA RECEITAS ───────────────────────────────────────────
+function ListaReceitas({ filtR, recipes, catR, setCatR, searchR, setSearchR, detailId, view, produtos, openDet }) {
+  return (
+    <>
+      <div style={s.srchW}>
+        <span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span>
+        <input style={s.srch} placeholder="Buscar receita..." value={searchR} onChange={e=>setSearchR(e.target.value)}/>
+      </div>
+      <div style={s.chips}>{["Todos",...CAT_R].map(c=><button key={c} style={{...s.chip,...(catR===c?s.chipa:{})}} onClick={()=>setCatR(c)}>{c}</button>)}</div>
+      <div style={s.cnt}>{filtR.length} receita{filtR.length!==1?"s":""}</div>
+      {filtR.length===0
+        ?<div style={s.emp}><div style={{fontSize:46,marginBottom:10}}>🍰</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:5}}>{recipes.length===0?"Nenhuma receita":"Nada encontrado"}</div><div style={{fontSize:12,color:G,opacity:.7}}>{recipes.length===0?'Toque em "+ Receita" para começar!':"Tente outro termo."}</div></div>
+        :<div style={s.list}>{filtR.map(r=>{const{final}=calc(r,produtos);return(
+          <div key={r.id} style={{...s.card,...(detailId===r.id&&view==="detail"?{borderColor:R,background:"#FFF7F9"}:{})}} className="card-hl" onClick={()=>openDet(r.id)}>
+            <div style={s.cem}>{r.emoji}</div>
+            <div style={s.cbd}><div style={s.cnm}>{r.nome}</div><div style={s.cmt}>{r.categoria||"Sem categoria"} · rend. {r.rendimento} un.</div></div>
+            <div style={s.cpr}><div style={s.cpv}>{fmt(final)}</div><div style={s.cpl}>p/ unidade</div></div>
+          </div>
+        );})}</div>
+      }
+    </>
+  );
+}
+
+// ─── LISTA PRODUTOS ────────────────────────────────────────────
+function ListaProdutos({ filtP, catP, setCatP, searchP, setSearchP, recipes, openEditP }) {
+  return (
+    <>
+      <div style={s.srchW}>
+        <span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span>
+        <input style={s.srch} placeholder="Buscar produto..." value={searchP} onChange={e=>setSearchP(e.target.value)}/>
+      </div>
+      <div style={s.chips}>{["Todos",...CAT_P].map(c=><button key={c} style={{...s.chip,...(catP===c?s.chipa:{})}} onClick={()=>setCatP(c)}>{c}</button>)}</div>
+      <div style={s.cnt}>{filtP.length} produto{filtP.length!==1?"s":""} · toque para atualizar</div>
+      <div style={s.list}>{filtP.map(p=>{
+        const used=recipes.filter(r=>r.ingredientes.some(i=>i.produtoId===p.id)).length;
+        const pu=p.embalagemQtd?p.preco/p.embalagemQtd:0;
+        return(
+          <div key={p.id} style={s.card} className="card-hl" onClick={()=>openEditP(p.id)}>
+            <div style={{...s.cem,fontSize:20}}>{CATEMOJI[p.categoria]||"📦"}</div>
+            <div style={s.cbd}><div style={s.cnm}>{p.nome}</div><div style={s.cmt}>{p.categoria} · R$ {fmtN(pu)}/{p.unidade}</div>{used>0&&<div style={{fontSize:10,color:R,fontWeight:600,marginTop:2}}>usado em {used} receita{used>1?"s":""}</div>}</div>
+            <div style={s.cpr}><div style={s.cpv}>{fmt(p.preco)}</div><div style={s.cpl}>{p.embalagemQtd}{p.unidade}</div></div>
+          </div>
+        );
+      })}</div>
+    </>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
@@ -797,45 +846,7 @@ export default function App() {
     </div>
   );
 
-  // ══════════════════════════════════════════════════════════════
-  // LISTAS — usadas em mobile e sidebar desktop
-  // ══════════════════════════════════════════════════════════════
-  const ListaReceitas = () => (
-    <>
-      <div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar receita..." value={searchR} onChange={e=>setSearchR(e.target.value)}/></div>
-      <div style={s.chips}>{["Todos",...CAT_R].map(c=><button key={c} style={{...s.chip,...(catR===c?s.chipa:{})}} onClick={()=>setCatR(c)}>{c}</button>)}</div>
-      <div style={s.cnt}>{filtR.length} receita{filtR.length!==1?"s":""}</div>
-      {filtR.length===0
-        ?<div style={s.emp}><div style={{fontSize:46,marginBottom:10}}>🍰</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,marginBottom:5}}>{recipes.length===0?"Nenhuma receita":"Nada encontrado"}</div><div style={{fontSize:12,color:G,opacity:.7}}>{recipes.length===0?'Toque em "+ Receita" para começar!':"Tente outro termo."}</div></div>
-        :<div style={s.list}>{filtR.map(r=>{const{final}=calc(r,produtos);return(
-          <div key={r.id} style={{...s.card,...(detailId===r.id&&view==="detail"?{borderColor:R,background:"#FFF7F9"}:{})}} className="card-hl" onClick={()=>openDet(r.id)}>
-            <div style={s.cem}>{r.emoji}</div>
-            <div style={s.cbd}><div style={s.cnm}>{r.nome}</div><div style={s.cmt}>{r.categoria||"Sem categoria"} · rend. {r.rendimento} un.</div></div>
-            <div style={s.cpr}><div style={s.cpv}>{fmt(final)}</div><div style={s.cpl}>p/ unidade</div></div>
-          </div>
-        );})}</div>
-      }
-    </>
-  );
-
-  const ListaProdutos = () => (
-    <>
-      <div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar produto..." value={searchP} onChange={e=>setSearchP(e.target.value)}/></div>
-      <div style={s.chips}>{["Todos",...CAT_P].map(c=><button key={c} style={{...s.chip,...(catP===c?s.chipa:{})}} onClick={()=>setCatP(c)}>{c}</button>)}</div>
-      <div style={s.cnt}>{filtP.length} produto{filtP.length!==1?"s":""} · toque para atualizar</div>
-      <div style={s.list}>{filtP.map(p=>{
-        const used=recipes.filter(r=>r.ingredientes.some(i=>i.produtoId===p.id)).length;
-        const pu=p.embalagemQtd?p.preco/p.embalagemQtd:0;
-        return(
-          <div key={p.id} style={s.card} className="card-hl" onClick={()=>openEditP(p.id)}>
-            <div style={{...s.cem,fontSize:20}}>{CATEMOJI[p.categoria]||"📦"}</div>
-            <div style={s.cbd}><div style={s.cnm}>{p.nome}</div><div style={s.cmt}>{p.categoria} · R$ {fmtN(pu)}/{p.unidade}</div>{used>0&&<div style={{fontSize:10,color:R,fontWeight:600,marginTop:2}}>usado em {used} receita{used>1?"s":""}</div>}</div>
-            <div style={s.cpr}><div style={s.cpv}>{fmt(p.preco)}</div><div style={s.cpl}>{p.embalagemQtd}{p.unidade}</div></div>
-          </div>
-        );
-      })}</div>
-    </>
-  );
+  // ListaReceitas e ListaProdutos movidas para componentes externos abaixo
 
   // ── DETALHE MOBILE ──
   const DetalheMobile = () => {
@@ -934,7 +945,7 @@ export default function App() {
           <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout}>🚪</button>
         </div>
       </header>
-      {view==="list"&&<><div style={s.tabs}><button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={()=>setTab("receitas")}>🍰 Receitas</button><button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={()=>setTab("produtos")}>📦 Produtos</button></div>{tab==="receitas"?<ListaReceitas/>:<ListaProdutos/>}</>}
+      {view==="list"&&<><div style={s.tabs}><button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={()=>setTab("receitas")}>🍰 Receitas</button><button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={()=>setTab("produtos")}>📦 Produtos</button></div>{tab==="receitas"?<ListaReceitas filtR={filtR} recipes={recipes} catR={catR} setCatR={setCatR} searchR={searchR} setSearchR={setSearchR} detailId={detailId} view={view} produtos={produtos} openDet={openDet}/>:<ListaProdutos filtP={filtP} catP={catP} setCatP={setCatP} searchP={searchP} setSearchP={setSearchP} recipes={recipes} openEditP={openEditP}/>}</>}
       {view==="detail"&&<DetalheMobile/>}
       {view==="rForm"&&<ReceitaForm initialData={rFormData} editId={editId} produtos={produtos} saving={saving} saveP={saveP} toast_={toast_} onSaved={saveRecipe} onOpenQuickP={()=>setQuickPOpen(true)}/>}
       {view==="pForm"&&<ProdutoForm initialData={pFormData} editId={editPId} recipes={recipes} saving={saving} saveP={saveP} pedirExcP={pedirExcP} copiarProduto={copiarProduto} toast_={toast_} onSaved={saveProd} onCancel={()=>setView("list")}/>}
