@@ -575,6 +575,101 @@ function ListaProdutos({ filtP, catP, setCatP, searchP, setSearchP, recipes, ope
   );
 }
 
+// ─── DETALHE MOBILE ───────────────────────────────────────────
+function DetalheMobile({ recipes, detailId, produtos, setView, openEditR, copiarReceita, pedirExcR }) {
+  const r = recipes.find(r=>r.id===detailId);
+  if (!r) return null;
+  const ci = r.ingredientes.reduce((sum,i)=>{const p=produtos.find(p=>p.id===i.produtoId);return p?sum+(p.preco/p.embalagemQtd)*i.usadoQtd:sum;},0);
+  const pctO = (r.outrosCustos!==undefined?r.outrosCustos:30)/100;
+  const outros=ci*pctO, total=ci+outros+(r.despesas||0);
+  const porUn=r.rendimento>0?total/r.rendimento:0;
+  const semT=porUn*(1+(r.margem||100)/100);
+  const tp=(r.taxaDelivery||30)/100;
+  const final=tp<1?semT/(1-tp):semT, taxa=final-semT;
+  const lucro=(final-taxa-porUn)*r.rendimento;
+  const lucroApp=r.precoApp>0?(r.precoApp-(r.precoApp*tp)-porUn)*r.rendimento:null;
+  return (
+    <>
+      <div style={s.dh}>
+        <div style={{fontSize:44,marginBottom:7,marginTop:10}}>{r.emoji}</div>
+        <div style={s.dn}>{r.nome}</div>
+        <div style={s.dc}>{r.categoria||"Sem categoria"} · {r.rendimento} unidade{r.rendimento!==1?"s":""}</div>
+      </div>
+      <div style={s.db}>
+        <div style={s.sec}>
+          <div style={s.st}>Ingredientes</div>
+          {r.ingredientes.map((ing,i)=>{
+            const p=produtos.find(p=>p.id===ing.produtoId);
+            if(!p)return null;
+            return(<div key={i} style={s.ir}><div><div style={{fontWeight:500,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:G,marginTop:1}}>{ing.usadoQtd}{p.unidade} - {fmt(p.preco)}/{p.embalagemQtd}{p.unidade}</div></div><div style={s.icost}>{fmt((p.preco/p.embalagemQtd)*ing.usadoQtd)}</div></div>);
+          })}
+          <div style={{...s.ir,borderTop:"2px solid "+RC,marginTop:5,paddingTop:7}}><div style={{fontWeight:700}}>Custo ingredientes</div><div style={s.icost}>{fmt(ci)}</div></div>
+          <div style={s.ir}><div>Outros custos ({r.outrosCustos||30}%)</div><div style={s.icost}>{fmt(outros)}</div></div>
+          {r.despesas>0&&<div style={s.ir}><div>Despesas extras</div><div style={s.icost}>{fmt(r.despesas)}</div></div>}
+          <div style={{...s.ir,fontWeight:700}}><div>Custo total</div><div style={s.icost}>{fmt(total)}</div></div>
+        </div>
+        <div style={s.sec}>
+          <div style={s.st}>Precificacao</div>
+          <div style={s.pg}>
+            <div style={s.pb}><div style={s.pl}>Custo/unidade</div><div style={s.pv}>{fmt(porUn)}</div></div>
+            <div style={s.pb}><div style={s.pl}>Margem</div><div style={s.pv}>{r.margem}%</div></div>
+            <div style={s.pb}><div style={s.pl}>Preco s/ taxa</div><div style={s.pv}>{fmt(semT)}</div></div>
+            <div style={s.pb}><div style={s.pl}>Taxa delivery ({r.taxaDelivery}%)</div><div style={s.pv}>{fmt(taxa)}</div></div>
+          </div>
+          <div style={s.ph}><div style={s.phl}>Preco de venda/unidade</div><div style={s.phv}>{fmt(final)}</div></div>
+          {r.precoApp>0&&<div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC",marginBottom:7}}><div style={{...s.pl,color:"#166534"}}>Preco praticado no app</div><div style={{...s.pv,color:"#166534"}}>{fmt(r.precoApp)}</div></div>}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{...s.pb,background:"#FFF7F9",border:"1.5px solid #FCD34D"}}><div style={{...s.pl,color:"#92400E"}}>Lucro sugerido</div><div style={{...s.pv,color:"#92400E"}}>{fmt(lucro)}</div></div>
+            {lucroApp!==null&&<div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC"}}><div style={{...s.pl,color:"#166534"}}>Lucro app</div><div style={{...s.pv,color:"#166534"}}>{fmt(lucroApp)}</div></div>}
+          </div>
+        </div>
+        {r.obs&&<div style={s.sec}><div style={s.st}>Obs</div><div style={{fontSize:13,color:G,lineHeight:1.6}}>{r.obs}</div></div>}
+        <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+          <button style={s.be} onClick={()=>openEditR(r.id)}>Editar</button>
+          <button style={{...s.bpri,padding:"13px 14px"}} onClick={()=>copiarReceita(r.id)}>Copiar</button>
+          <button style={s.bd} onClick={()=>pedirExcR(r.id)}>Excluir</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── MODAL RELATORIOS ──────────────────────────────────────────
+function RelModal({ recipes, produtos, filtP, viewRel, setViewRel, exportarCSV }) {
+  if (!viewRel) return null;
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
+      <div style={{background:W,borderRadius:"18px 18px 0 0",padding:20,width:"100%",maxWidth:520,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:V}}>Relatorios</div>
+          <button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:G}} onClick={()=>setViewRel(false)}>X</button>
+        </div>
+        <div style={{...s.sec,marginBottom:10}}>
+          <div style={s.st}>Resumo de Receitas ({recipes.length})</div>
+          {recipes.map(r=>{const c=calc(r,produtos);return(
+            <div key={r.id} style={{borderBottom:"1px solid #FDE8ED",padding:"7px 0",fontSize:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{r.emoji} {r.nome}</span><span style={{color:R}}>{fmt(c.final)}/un</span></div>
+              <div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}><span>Custo {fmt(c.porUn)}/un - Margem {r.margem}%</span><span style={{color:"#92400E"}}>Lucro {fmt(c.lucro)}</span></div>
+            </div>
+          );})}
+          <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("receitas")}>Exportar Receitas CSV</button>
+        </div>
+        <div style={s.sec}>
+          <div style={s.st}>Resumo de Produtos ({filtP.length})</div>
+          {filtP.slice(0,20).map(p=>{const used=recipes.filter(r=>r.ingredientes.some(i=>i.produtoId===p.id)).length;const pu=p.embalagemQtd?p.preco/p.embalagemQtd:0;return(
+            <div key={p.id} style={{borderBottom:"1px solid #FDE8ED",padding:"6px 0",fontSize:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{p.nome}</span><span style={{color:R}}>{fmt(p.preco)}</span></div>
+              <div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade} - {used} receita{used!==1?"s":""}</div>
+            </div>
+          );})}
+          {filtP.length>20&&<div style={{fontSize:11,color:G,padding:"6px 0"}}>...e mais {filtP.length-20} produtos no CSV</div>}
+          <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("produtos")}>Exportar Produtos CSV</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ═══════════════════════════════════════════════════════════════
@@ -864,114 +959,50 @@ export default function App() {
 
   // ListaReceitas e ListaProdutos movidas para componentes externos abaixo
 
-  // ── DETALHE MOBILE ──
-  const DetalheMobile = () => {
-    const r=recipes.find(r=>r.id===detailId);
-    if(!r){setView("list");return null;}
-    const{ci,outros,total,porUn,semT,taxa,final,lucro,lucroApp}=calc(r,produtos);
-    return(
-      <>
-        <div style={s.dh}>
-          <div style={{fontSize:44,marginBottom:7,marginTop:10}}>{r.emoji}</div>
-          <div style={s.dn}>{r.nome}</div>
-          <div style={s.dc}>{r.categoria||"Sem categoria"} · {r.rendimento} unidade{r.rendimento!==1?"s":""}</div>
-        </div>
-        <div style={s.db}>
-          <div style={s.sec}>
-            <div style={s.st}>🧂 Ingredientes</div>
-            {r.ingredientes.map((ing,i)=>{
-              const p=produtos.find(p=>p.id===ing.produtoId);
-              if(!p)return null;
-              return(<div key={i} style={s.ir}><div><div style={{fontWeight:500,fontSize:13}}>{p.nome}</div><div style={{fontSize:11,color:G,marginTop:1}}>{ing.usadoQtd}{p.unidade} · {fmt(p.preco)}/{p.embalagemQtd}{p.unidade}</div></div><div style={s.icost}>{fmt((p.preco/p.embalagemQtd)*ing.usadoQtd)}</div></div>);
-            })}
-            <div style={{...s.ir,borderTop:`2px solid ${RC}`,marginTop:5,paddingTop:7}}><div style={{fontWeight:700}}>Custo ingredientes</div><div style={s.icost}>{fmt(ci)}</div></div>
-            <div style={s.ir}><div>Outros custos ({r.outrosCustos||30}%)</div><div style={s.icost}>{fmt(outros)}</div></div>
-            {r.despesas>0&&<div style={s.ir}><div>Despesas extras</div><div style={s.icost}>{fmt(r.despesas)}</div></div>}
-            <div style={{...s.ir,fontWeight:700}}><div>Custo total</div><div style={s.icost}>{fmt(total)}</div></div>
-          </div>
-          <div style={s.sec}>
-            <div style={s.st}>💰 Precificação</div>
-            <div style={s.pg}><div style={s.pb}><div style={s.pl}>Custo/unidade</div><div style={s.pv}>{fmt(porUn)}</div></div><div style={s.pb}><div style={s.pl}>Margem</div><div style={s.pv}>{r.margem}%</div></div><div style={s.pb}><div style={s.pl}>Preço s/ taxa</div><div style={s.pv}>{fmt(semT)}</div></div><div style={s.pb}><div style={s.pl}>Taxa delivery ({r.taxaDelivery}%)</div><div style={s.pv}>{fmt(taxa)}</div></div></div>
-            <div style={s.ph}><div style={s.phl}>🏷 Preço de venda/unidade</div><div style={s.phv}>{fmt(final)}</div></div>
-            {r.precoApp>0&&<div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC",marginBottom:7}}><div style={{...s.pl,color:"#166534"}}>✅ Preço praticado no app</div><div style={{...s.pv,color:"#166534"}}>{fmt(r.precoApp)}</div></div>}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              <div style={{...s.pb,background:"#FFF7F9",border:"1.5px solid #FCD34D"}}><div style={{...s.pl,color:"#92400E"}}>💸 Lucro (sugerido)</div><div style={{...s.pv,color:"#92400E"}}>{fmt(lucro)}</div></div>
-              {lucroApp!==null&&<div style={{...s.pb,background:"#F0FFF4",border:"1.5px solid #86EFAC"}}><div style={{...s.pl,color:"#166534"}}>💸 Lucro (app)</div><div style={{...s.pv,color:"#166534"}}>{fmt(lucroApp)}</div></div>}
-            </div>
-          </div>
-          {r.obs&&<div style={s.sec}><div style={s.st}>📝 Obs</div><div style={{fontSize:13,color:G,lineHeight:1.6}}>{r.obs}</div></div>}
-          <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
-            <button style={s.be} onClick={()=>openEditR(r.id)}>✏️ Editar</button>
-            <button style={{...s.bpri,padding:"13px 14px"}} onClick={()=>copiarReceita(r.id)}>📋 Copiar</button>
-            <button style={s.bd} onClick={()=>pedirExcR(r.id)}>🗑 Excluir</button>
-          </div>
-        </div>
-      </>
-    );
-  };
 
-  // ══════════════════════════════════════════════════════════════
-  // MODAL RELATÓRIOS
-  // ══════════════════════════════════════════════════════════════
-  const RelModal = () => !viewRel ? null : (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"flex-end"}}>
-      <div style={{background:W,borderRadius:"18px 18px 0 0",padding:20,width:"100%",maxWidth:520,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:V}}>📊 Relatórios</div>
-          <button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:G}} onClick={()=>setViewRel(false)}>✕</button>
-        </div>
-        <div style={{...s.sec,marginBottom:10}}>
-          <div style={s.st}>🍰 Resumo de Receitas ({recipes.length})</div>
-          {recipes.map(r=>{const c=calc(r,produtos);return(
-            <div key={r.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"7px 0",fontSize:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{r.emoji} {r.nome}</span><span style={{color:R}}>{fmt(c.final)}/un</span></div>
-              <div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}><span>Custo {fmt(c.porUn)}/un · Margem {r.margem}%</span><span style={{color:"#92400E"}}>Lucro {fmt(c.lucro)}</span></div>
-            </div>
-          );})}
-          <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("receitas")}>⬇️ Exportar Receitas CSV</button>
-        </div>
-        <div style={s.sec}>
-          <div style={s.st}>📦 Resumo de Produtos ({filtP.length})</div>
-          {filtP.slice(0,20).map(p=>{const used=recipes.filter(r=>r.ingredientes.some(i=>i.produtoId===p.id)).length;const pu=p.embalagemQtd?p.preco/p.embalagemQtd:0;return(
-            <div key={p.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"6px 0",fontSize:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{p.nome}</span><span style={{color:R}}>{fmt(p.preco)}</span></div>
-              <div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade} · {used} receita{used!==1?"s":""}</div>
-            </div>
-          );})}
-          {filtP.length>20&&<div style={{fontSize:11,color:G,padding:"6px 0"}}>...e mais {filtP.length-20} produtos no CSV</div>}
-          <button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("produtos")}>⬇️ Exportar Produtos CSV</button>
-        </div>
-      </div>
-    </div>
-  );
 
   // ══════════════════════════════════════════════════════════════
   // MOBILE
   // ══════════════════════════════════════════════════════════════
-  const MobileApp = () => (
-    <div style={s.app} className="mobile-only">
-      <header style={s.hdr}>
-        <div>
-          <div style={s.logo}>{negocioNome||"Fichas Técnicas"}</div>
-          <div style={s.lsub}>Fichas Técnicas</div>
-        </div>
-        <div style={{display:"flex",gap:7,alignItems:"center"}}>
-          {view==="list"&&<><button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={()=>setViewRel(true)}>📊</button><button style={s.bpri} onClick={tab==="receitas"?openNewR:openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button></>}
-          {view!=="list"&&<button style={s.bback} onClick={()=>{if(view==="detail"||view==="pForm")setView("list");else if(view==="rForm")setView(editId?"detail":"list");}}>← Voltar</button>}
-          <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout}>🚪</button>
-        </div>
-      </header>
-      {view==="list"&&<><div style={s.tabs}><button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={()=>setTab("receitas")}>🍰 Receitas</button><button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={()=>setTab("produtos")}>📦 Produtos</button></div>{tab==="receitas"?<ListaReceitas filtR={filtR} recipes={recipes} catR={catR} setCatR={setCatR} searchR={searchR} setSearchR={setSearchR} detailId={detailId} view={view} produtos={produtos} openDet={openDet}/>:<ListaProdutos filtP={filtP} catP={catP} setCatP={setCatP} searchP={searchP} setSearchP={setSearchP} recipes={recipes} openEditP={openEditP}/>}</>}
-      {view==="detail"&&<DetalheMobile/>}
-      {view==="rForm"&&<ReceitaForm initialData={rFormData} editId={editId} produtos={produtos} saving={saving} saveP={saveP} toast_={toast_} onSaved={saveRecipe} onOpenQuickP={()=>setQuickPOpen(true)}/>}
-      {view==="pForm"&&<ProdutoForm initialData={pFormData} editId={editPId} recipes={recipes} saving={saving} saveP={saveP} pedirExcP={pedirExcP} copiarProduto={copiarProduto} toast_={toast_} onSaved={saveProd} onCancel={()=>setView("list")}/>}
-    </div>
-  );
+  // ── RENDER DIRETO — sem const intermediários que causam remount ──
 
   // ══════════════════════════════════════════════════════════════
-  // DESKTOP
+  // RENDER FINAL DIRETO
   // ══════════════════════════════════════════════════════════════
-  const DesktopApp = () => (
+  return (
+    <>
+      <style>{CSS}</style>
+
+      {/* ── MOBILE ── */}
+      <div style={s.app} className="mobile-only">
+        <header style={s.hdr}>
+          <div>
+            <div style={s.logo}>{negocioNome||"Fichas Técnicas"}</div>
+            <div style={s.lsub}>Fichas Técnicas</div>
+          </div>
+          <div style={{display:"flex",gap:7,alignItems:"center"}}>
+            {view==="list"&&<><button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={()=>setViewRel(true)}>📊</button><button style={s.bpri} onClick={tab==="receitas"?openNewR:openNewP}>+ {tab==="receitas"?"Receita":"Produto"}</button></>}
+            {view!=="list"&&<button style={s.bback} onClick={()=>{if(view==="detail"||view==="pForm")setView("list");else if(view==="rForm")setView(editId?"detail":"list");}}>← Voltar</button>}
+            <button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout}>🚪</button>
+          </div>
+        </header>
+        {view==="list"&&<>
+          <div style={s.tabs}>
+            <button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={()=>setTab("receitas")}>🍰 Receitas</button>
+            <button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={()=>setTab("produtos")}>📦 Produtos</button>
+          </div>
+          {tab==="receitas"
+            ?<ListaReceitas filtR={filtR} recipes={recipes} catR={catR} setCatR={setCatR} searchR={searchR} setSearchR={setSearchR} detailId={detailId} view={view} produtos={produtos} openDet={openDet}/>
+            :<ListaProdutos filtP={filtP} catP={catP} setCatP={setCatP} searchP={searchP} setSearchP={setSearchP} recipes={recipes} openEditP={openEditP}/>
+          }
+        </>}
+        {view==="detail"&&<DetalheMobile recipes={recipes} detailId={detailId} produtos={produtos} setView={setView} openEditR={openEditR} copiarReceita={copiarReceita} pedirExcR={pedirExcR}/>}
+        {view==="rForm"&&<ReceitaForm initialData={rFormData} editId={editId} produtos={produtos} saving={saving} saveP={saveP} toast_={toast_} onSaved={saveRecipe} onOpenQuickP={()=>setQuickPOpen(true)}/>}
+        {view==="pForm"&&<ProdutoForm initialData={pFormData} editId={editPId} recipes={recipes} saving={saving} saveP={saveP} pedirExcP={pedirExcP} copiarProduto={copiarProduto} toast_={toast_} onSaved={saveProd} onCancel={()=>setView("list")}/>}
+      </div>
+
+      {/* ── DESKTOP ── */}
+      <div className="desktop-only desk-grid">(
     <div className="desktop-only desk-grid">
       {/* SIDEBAR */}
       <div className="desk-side">
@@ -1038,17 +1069,9 @@ export default function App() {
     </div>
   );
 
-  // ══════════════════════════════════════════════════════════════
-  // RENDER FINAL
-  // ══════════════════════════════════════════════════════════════
-  return (
-    <>
-      <style>{CSS}</style>
-      <MobileApp/>
-      <DesktopApp/>
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={()=>setConfirmDel(null)}/>
       <QuickProdModal open={quickPOpen} produtos={produtos} saveP={saveP} toast_={toast_} onClose={()=>setQuickPOpen(false)}/>
-      <RelModal/>
+      <RelModal recipes={recipes} produtos={produtos} filtP={filtP} viewRel={viewRel} setViewRel={setViewRel} exportarCSV={exportarCSV}/>
       {toast&&<div style={s.tst}>{toast}</div>}
       {saving&&<div style={s.sync}>💾 Salvando...</div>}
     </>
