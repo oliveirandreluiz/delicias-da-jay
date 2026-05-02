@@ -512,11 +512,19 @@ function DesktopDetail({ r, produtos, negocioNome, onEdit, onCopy, onDelete }) {
 
 // ─── LISTA RECEITAS ───────────────────────────────────────────
 function ListaReceitas({ filtR, recipes, catR, setCatR, searchR, setSearchR, detailId, view, produtos, openDet }) {
+  // State local para o input — evita perda de foco ao re-renderizar
+  const [localSearch, setLocalSearch] = useState(searchR);
+  const timerRef = useRef(null);
+  const handleSearch = (val) => {
+    setLocalSearch(val);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setSearchR(val), 120);
+  };
   return (
     <>
       <div style={s.srchW}>
         <span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span>
-        <input style={s.srch} placeholder="Buscar receita..." value={searchR} onChange={e=>setSearchR(e.target.value)}/>
+        <input style={s.srch} placeholder="Buscar receita..." value={localSearch} onChange={e=>handleSearch(e.target.value)}/>
       </div>
       <div style={s.chips}>{["Todos",...CAT_R].map(c=><button key={c} style={{...s.chip,...(catR===c?s.chipa:{})}} onClick={()=>setCatR(c)}>{c}</button>)}</div>
       <div style={s.cnt}>{filtR.length} receita{filtR.length!==1?"s":""}</div>
@@ -536,11 +544,19 @@ function ListaReceitas({ filtR, recipes, catR, setCatR, searchR, setSearchR, det
 
 // ─── LISTA PRODUTOS ────────────────────────────────────────────
 function ListaProdutos({ filtP, catP, setCatP, searchP, setSearchP, recipes, openEditP }) {
+  // State local para o input — evita perda de foco ao re-renderizar
+  const [localSearch, setLocalSearch] = useState(searchP);
+  const timerRef = useRef(null);
+  const handleSearch = (val) => {
+    setLocalSearch(val);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setSearchP(val), 120);
+  };
   return (
     <>
       <div style={s.srchW}>
         <span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span>
-        <input style={s.srch} placeholder="Buscar produto..." value={searchP} onChange={e=>setSearchP(e.target.value)}/>
+        <input style={s.srch} placeholder="Buscar produto..." value={localSearch} onChange={e=>handleSearch(e.target.value)}/>
       </div>
       <div style={s.chips}>{["Todos",...CAT_P].map(c=><button key={c} style={{...s.chip,...(catP===c?s.chipa:{})}} onClick={()=>setCatP(c)}>{c}</button>)}</div>
       <div style={s.cnt}>{filtP.length} produto{filtP.length!==1?"s":""} · toque para atualizar</div>
