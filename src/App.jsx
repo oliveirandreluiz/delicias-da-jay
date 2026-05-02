@@ -1002,10 +1002,9 @@ export default function App() {
       </div>
 
       {/* ── DESKTOP ── */}
-      <div className="desktop-only desk-grid">(
-    <div className="desktop-only desk-grid">
-      {/* SIDEBAR */}
-      <div className="desk-side">
+      <div className="desktop-only desk-grid">
+        {/* SIDEBAR */}
+        <div className="desk-side">
         <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,.1)"}}>
           <div style={{fontFamily:"'Playfair Display',serif",color:RL,fontSize:18,lineHeight:1.2}}>{negocioNome||"Fichas Técnicas"}</div>
           <div style={{color:"#D4748866",fontSize:10,letterSpacing:".1em",textTransform:"uppercase",marginTop:2}}>Fichas Técnicas</div>
@@ -1066,8 +1065,7 @@ export default function App() {
         {view==="rForm"&&<div style={{maxWidth:720,margin:"0 auto",width:"100%",padding:"20px 28px 80px"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button style={{...s.bback,background:RC,color:V}} onClick={()=>setView(editId?"detail":"list")}>← Cancelar</button><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V}}>{editId?"Editar Receita":"Nova Receita"}</h2></div><ReceitaForm initialData={rFormData} editId={editId} produtos={produtos} saving={saving} saveP={saveP} toast_={toast_} onSaved={saveRecipe} onOpenQuickP={()=>setQuickPOpen(true)}/></div>}
         {view==="pForm"&&<div style={{maxWidth:600,margin:"0 auto",width:"100%",padding:"20px 28px 80px"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button style={{...s.bback,background:RC,color:V}} onClick={()=>setView("list")}>← Cancelar</button><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V}}>{editPId?"Editar Produto":"Novo Produto"}</h2></div><ProdutoForm initialData={pFormData} editId={editPId} recipes={recipes} saving={saving} saveP={saveP} pedirExcP={pedirExcP} copiarProduto={copiarProduto} toast_={toast_} onSaved={saveProd} onCancel={()=>setView("list")}/></div>}
       </div>
-    </div>
-  );
+      </div>
 
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={()=>setConfirmDel(null)}/>
       <QuickProdModal open={quickPOpen} produtos={produtos} saveP={saveP} toast_={toast_} onClose={()=>setQuickPOpen(false)}/>
