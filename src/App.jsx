@@ -132,6 +132,18 @@ const GLOBAL_CSS = `
     .desk-side{background:${V};display:flex;flex-direction:column;overflow:hidden;height:100vh;}
     .desk-main{background:${CR};overflow-y:auto;display:flex;flex-direction:column;}
     .desk-detail-grid{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;}
+    /* ── Desktop form layout ── */
+    .desk-form-wrap{max-width:800px;margin:0 auto;width:100%;padding:28px 36px 80px;}
+    .desk-form-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid ${RC};}
+    .desk-form-header h2{font-family:'Playfair Display',serif;font-size:22px;color:${V};margin:0;}
+    .desk-form-actions{display:flex;gap:10px;align-items:center;}
+    .desk-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+    .desk-row-4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+    .desk-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .desk-btn-group{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;}
+    .desk-btn-group button{width:auto!important;}
+    .desk-btn-save{width:auto!important;padding:13px 36px!important;border-radius:10px!important;}
+    .desk-btn-danger{width:auto!important;padding:11px 24px!important;}
   }
 `;
 
@@ -212,18 +224,20 @@ function ProdutoForm({ initialData, editId, recipes, saving, onSaved, onDelete, 
         <div style={s.st}>📦 Dados do Produto</div>
         {editId && f.codigo && <div style={{...s.tag, marginBottom:12}}>SKU: {f.codigo}</div>}
         <label style={s.lbl}>Nome *</label><input style={s.inp} placeholder="Ex: Leite condensado" value={f.nome} onChange={e => handleChange("nome", e.target.value)}/>
-        <label style={s.lbl}>Categoria</label><select style={s.inp} value={f.categoria} onChange={e => handleChange("categoria", e.target.value)}>{CAT_P.map(c => <option key={c}>{c}</option>)}</select>
-        <div style={{display:"flex",gap:10}}>
-          <div style={{flex:1}}><label style={s.lbl}>Preço pago (R$) *</label><input style={s.inp} type="number" step="0.01" placeholder="6.39" value={f.preco_ultimo} onChange={e => handleChange("preco_ultimo", e.target.value)}/></div>
-          <div style={{flex:1}}><label style={s.lbl}>Unidade</label><select style={s.inp} value={f.unidade} onChange={e => handleChange("unidade", e.target.value)}>{UNIDS.map(u => <option key={u}>{u}</option>)}</select></div>
+        <div className="desk-row-3" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:140}}><label style={s.lbl}>Categoria</label><select style={s.inp} value={f.categoria} onChange={e => handleChange("categoria", e.target.value)}>{CAT_P.map(c => <option key={c}>{c}</option>)}</select></div>
+          <div style={{flex:1,minWidth:100}}><label style={s.lbl}>Preço pago (R$) *</label><input style={s.inp} type="number" step="0.01" placeholder="6.39" value={f.preco_ultimo} onChange={e => handleChange("preco_ultimo", e.target.value)}/></div>
+          <div style={{flex:1,minWidth:80}}><label style={s.lbl}>Unidade</label><select style={s.inp} value={f.unidade} onChange={e => handleChange("unidade", e.target.value)}>{UNIDS.map(u => <option key={u}>{u}</option>)}</select></div>
         </div>
-        <label style={s.lbl}>Qtd na embalagem ({f.unidade}) *</label><input style={s.inp} type="number" step="any" placeholder="395" value={f.embalagem_qtd} onChange={e => handleChange("embalagem_qtd", e.target.value)}/>
+        <label style={s.lbl}>Qtd na embalagem ({f.unidade}) *</label><input style={{...s.inp,maxWidth:200}} type="number" step="any" placeholder="395" value={f.embalagem_qtd} onChange={e => handleChange("embalagem_qtd", e.target.value)}/>
         {pu !== null && <div style={s.tag}>💡 Custo por {f.unidade}: R$ {fmtN(pu)}/{f.unidade}</div>}
       </div>
       {usadoEm.length > 0 && <div style={s.sec}><div style={s.st}>📋 Usado em {usadoEm.length} receita{usadoEm.length>1?"s":""}</div>{usadoEm.map(r => <div key={r.id} style={{fontSize:12,padding:"4px 0",borderBottom:`1px solid #FDE8ED`,display:"flex",gap:7}}><span>{r.emoji}</span><span>{r.nome}</span></div>)}</div>}
-      <button style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Produto"}</button>
-      {editId && <button style={{...s.bd,width:"100%",marginTop:10,padding:13,textAlign:"center"}} onClick={() => onDelete(editId)}>🗑 Excluir produto</button>}
-      {editId && <button style={{...s.bpri,width:"100%",marginTop:8,padding:13,textAlign:"center",borderRadius:50}} onClick={() => onCopy(editId)}>📋 Copiar produto</button>}
+      <div className="desk-btn-group" style={{display:"flex",flexDirection:"column",gap:8}}>
+        <button className="desk-btn-save" style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Produto"}</button>
+        {editId && <button className="desk-btn-danger" style={{...s.bd,width:"100%",padding:13,textAlign:"center"}} onClick={() => onDelete(editId)}>🗑 Excluir produto</button>}
+        {editId && <button className="desk-btn-save" style={{...s.bpri,width:"100%",padding:13,textAlign:"center",borderRadius:50}} onClick={() => onCopy(editId)}>📋 Copiar produto</button>}
+      </div>
       <div style={{height:40}}/>
     </div>
   );
@@ -285,7 +299,7 @@ function ReceitaForm({ initialData, editId, produtos, saving, onSaved, onOpenQui
         <div style={s.ph}><div style={s.phl}>🏷 Preço de venda sugerido/unidade</div><div style={s.phv}>{fmt(c.final)}</div><div style={{fontSize:11,opacity:.75,marginTop:2}}>Lucro estimado no lote: {fmt(c.lucro)}</div></div>
         <label style={s.lbl}>Preço praticado no app (R$)</label><input style={s.inp} type="number" step="0.01" placeholder="0,00" value={f.precoApp||""} onChange={e => handleChange("precoApp",parseFloat(e.target.value)||0)}/>
       </div>
-      <button style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Receita"}</button>
+      <button className="desk-btn-save" style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Receita"}</button>
       <div style={{height:40}}/>
     </div>
   );
@@ -307,12 +321,12 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
   return (
     <div style={s.fb}>
       <div style={s.sec}><div style={s.st}>🛒 Dados da Compra</div>
-        <div style={{display:"flex",gap:10}}>
-          <div style={{flex:1}}><label style={s.lbl}>Data *</label><input style={s.inp} type="date" value={header.data_compra} onChange={e => handleHeaderChange("data_compra", e.target.value)}/></div>
-          <div style={{flex:1}}><label style={s.lbl}>Nº Documento / NF</label><input style={s.inp} placeholder="Ex: 001234" value={header.num_doc} onChange={e => handleHeaderChange("num_doc", e.target.value)}/></div>
+        <div className="desk-row-3" style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:130}}><label style={s.lbl}>Data *</label><input style={s.inp} type="date" value={header.data_compra} onChange={e => handleHeaderChange("data_compra", e.target.value)}/></div>
+          <div style={{flex:1,minWidth:130}}><label style={s.lbl}>Nº Documento / NF</label><input style={s.inp} placeholder="Ex: 001234" value={header.num_doc} onChange={e => handleHeaderChange("num_doc", e.target.value)}/></div>
+          <div style={{flex:1,minWidth:130}}><label style={s.lbl}>Forma de pagamento</label><select style={s.inp} value={header.forma_pagamento} onChange={e => handleHeaderChange("forma_pagamento", e.target.value)}><option value="">—</option>{FORMAS_PAG.map(f => <option key={f}>{f}</option>)}</select></div>
         </div>
         <label style={s.lbl}>Empresa / Fornecedor</label><input style={s.inp} placeholder="Ex: Atacadão" value={header.fornecedor} onChange={e => handleHeaderChange("fornecedor", e.target.value)}/>
-        <label style={s.lbl}>Forma de pagamento</label><select style={s.inp} value={header.forma_pagamento} onChange={e => handleHeaderChange("forma_pagamento", e.target.value)}><option value="">—</option>{FORMAS_PAG.map(f => <option key={f}>{f}</option>)}</select>
       </div>
       <div style={s.sec}><div style={s.st}>📦 Itens da Compra</div><div style={s.help}>Busque o produto cadastrado. Não encontrou? Cadastre abaixo!</div>
         {itens.map((item, idx) => {
@@ -335,7 +349,7 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
       </div>
       <div style={s.ph}><div style={s.phl}>🧾 Total da Compra</div><div style={s.phv}>{fmt(totalItens)}</div><div style={{fontSize:11,opacity:.75,marginTop:2}}>{itens.filter(i=>i.produto_id).length} itens</div></div>
       <label style={s.lbl}>Observações (opcional)</label><textarea style={{...s.inp,height:65,resize:"none"}} value={header.obs||""} onChange={e => handleHeaderChange("obs",e.target.value)}/>
-      <button style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Compra"}</button>
+      <button className="desk-btn-save" style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Compra"}</button>
       <div style={{height:40}}/>
     </div>
   );
@@ -582,9 +596,9 @@ export default function App() {
         <div className="desk-main">
           {view==="list"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12}}><div style={{fontSize:64}}>{tab==="receitas"?"🍰":tab==="produtos"?"📦":"🛒"}</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:G}}>Selecione {tab==="receitas"?"uma receita":tab==="produtos"?"um produto":"uma compra"}</div></div>}
           {view==="detail"&&(()=>{const r=recipesCalc.find(x=>x.id===detailId);if(!r)return null;return<DesktopDetail r={r} produtos={produtos} onEdit={()=>openEditR(r.id)} onCopy={()=>copiarReceita(r.id)} onDelete={()=>pedirExcR(r.id)}/>;})()}
-          {view==="rForm"&&<div style={{maxWidth:720,margin:"0 auto",width:"100%",padding:"20px 28px 80px"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button style={{...s.bback,background:RC,color:V}} onClick={() => setView(editId?"detail":"list")}>← Cancelar</button><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V}}>{editId?"Editar Receita":"Nova Receita"}</h2></div><ReceitaForm initialData={rFormInit} editId={editId} produtos={produtos} saving={saving} onSaved={handleSaveRecipe} onOpenQuickP={() => setQuickPOpen(true)} toast_={toast_}/></div>}
-          {view==="pForm"&&<div style={{maxWidth:600,margin:"0 auto",width:"100%",padding:"20px 28px 80px"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button style={{...s.bback,background:RC,color:V}} onClick={() => setView("list")}>← Cancelar</button><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V}}>{editPId?"Editar Produto":"Novo Produto"}</h2></div><ProdutoForm initialData={pFormInit} editId={editPId} recipes={recipes} saving={saving} onSaved={handleSaveProd} onDelete={pedirExcP} onCopy={copiarProduto} toast_={toast_}/></div>}
-          {view==="cForm"&&<div style={{maxWidth:700,margin:"0 auto",width:"100%",padding:"20px 28px 80px"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><button style={{...s.bback,background:RC,color:V}} onClick={() => {setView("list");setTab("compras");}}>← Cancelar</button><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V}}>Nova Compra</h2></div><CompraForm produtos={produtos} saving={saving} onSaved={handleSaveCompra} onOpenQuickP={() => setQuickPOpen(true)} toast_={toast_}/></div>}
+          {view==="rForm"&&<div className="desk-form-wrap"><div className="desk-form-header"><h2>{editId?"Editar Receita":"Nova Receita"}</h2><div className="desk-form-actions"><button className="btn-h" style={{padding:"8px 20px",borderRadius:8,border:`2px solid ${RC}`,background:W,color:G,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={() => setView(editId?"detail":"list")}>Cancelar</button></div></div><ReceitaForm initialData={rFormInit} editId={editId} produtos={produtos} saving={saving} onSaved={handleSaveRecipe} onOpenQuickP={() => setQuickPOpen(true)} toast_={toast_}/></div>}
+          {view==="pForm"&&<div className="desk-form-wrap"><div className="desk-form-header"><h2>{editPId?"Editar Produto":"Novo Produto"}</h2><div className="desk-form-actions"><button className="btn-h" style={{padding:"8px 20px",borderRadius:8,border:`2px solid ${RC}`,background:W,color:G,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={() => setView("list")}>Cancelar</button></div></div><ProdutoForm initialData={pFormInit} editId={editPId} recipes={recipes} saving={saving} onSaved={handleSaveProd} onDelete={pedirExcP} onCopy={copiarProduto} toast_={toast_}/></div>}
+          {view==="cForm"&&<div className="desk-form-wrap"><div className="desk-form-header"><h2>Nova Compra</h2><div className="desk-form-actions"><button className="btn-h" style={{padding:"8px 20px",borderRadius:8,border:`2px solid ${RC}`,background:W,color:G,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={() => {setView("list");setTab("compras");}}>Cancelar</button></div></div><CompraForm produtos={produtos} saving={saving} onSaved={handleSaveCompra} onOpenQuickP={() => setQuickPOpen(true)} toast_={toast_}/></div>}
           {view==="cDetail"&&compraDetalhe&&(()=>{const c=compras.find(x=>x.id===compraDetalhe);if(!c)return null;const it=compraItens[compraDetalhe]||[];const tot=it.reduce((sum,i)=>sum+parseFloat(i.valor_subtotal||0),0);return<div style={{padding:"28px 32px",animation:"fadein .2s ease"}}><div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}><span style={{fontSize:36}}>🛒</span><div><h1 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:V}}>{c.fornecedor||"Compra"}</h1><div style={{fontSize:12,color:G,marginTop:4}}>{new Date(c.data_compra+"T12:00:00").toLocaleDateString("pt-BR")} · {c.forma_pagamento||""} · {mapaUsuarios[c.created_by]||""}</div></div></div><div style={s.sec}><div style={s.st}>📦 Itens ({it.length})</div>{it.map((i,idx)=><div key={idx} style={s.ir}><div><div style={{fontWeight:500,fontSize:13}}>{i.produto_nome_snapshot}</div><div style={{fontSize:11,color:G,marginTop:1}}>{i.qtd} {i.unidade} × {fmt(i.valor_unitario)}</div></div><div style={s.icost}>{fmt(i.valor_subtotal)}</div></div>)}<div style={{...s.ir,borderTop:`2px solid ${RC}`,marginTop:5,paddingTop:7,fontWeight:700}}><div>Total</div><div style={s.icost}>{fmt(tot)}</div></div></div>{c.obs&&<div style={s.sec}><div style={s.st}>📝 Obs</div><div style={{fontSize:13,color:G,lineHeight:1.6}}>{c.obs}</div></div>}<button className="btn-h" style={{padding:"9px 16px",borderRadius:8,border:`2px solid ${RC}`,background:W,color:R,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>pedirExcC(c.id)}>🗑 Excluir compra</button></div>;})()}
         </div>
       </div>
