@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ const s = {
   sync:{position:"fixed",top:68,right:10,background:R,color:W,padding:"3px 10px",borderRadius:50,fontSize:10,zIndex:100},
 };
 
-// ─── CSS GLOBAL ───────────────────────────────────────────────────────────
+// ─── CSS GLOBAL (Injetado) ────────────────────────────────────────────────
 const GLOBAL_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -126,7 +126,6 @@ const GLOBAL_CSS = `
   .ch:hover{border-color:${RC}!important;transform:translateY(-1px);}
   .po:hover{background:${CR}!important;}
   
-  @media print{.no-print{display:none!important;}.print-only{display:block!important;}body{background:#fff!important;}}
   .desktop-only{display:none!important;}
   .mobile-only{display:block!important;}
 
@@ -145,7 +144,6 @@ const GLOBAL_CSS = `
     .desk-grid{display:grid!important;grid-template-columns:280px 1fr;height:100vh;overflow:hidden;}
     .desk-side{background:${V};display:flex;flex-direction:column;overflow:hidden;height:100vh;}
     .desk-main{background:${CR};overflow-y:auto;display:flex;flex-direction:column;}
-    .desk-detail-grid{display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;}
     
     /* Drawer Desktop */
     .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; justify-content: flex-end; backdrop-filter: blur(2px); overflow: hidden; }
@@ -160,6 +158,55 @@ const GLOBAL_CSS = `
     .desk-row > div { flex: 1; min-width: 0; }
     .drawer-actions { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 10px; margin-top: 24px; border-top: 1px solid ${RC}; padding-top: 16px; }
     .drawer-actions button { width: auto!important; padding: 12px 24px!important; border-radius: 8px!important; margin-top: 0!important; }
+  }
+
+  /* ── PRINT CSS OTIMIZADO ── */
+  @media print {
+    .no-print, .desk-side, header, .tabs, .drawer-overlay, button, .sync, .tst {
+      display: none !important;
+    }
+    .print-only { display: block !important; }
+
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    body, .app, #root {
+      background: #fff !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    .desk-grid {
+      display: block !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    
+    .desk-main {
+      overflow: visible !important;
+      background: #fff !important;
+      padding: 0 !important;
+      height: auto !important;
+    }
+
+    .desk-detail-grid {
+      display: grid !important;
+      grid-template-columns: 1fr 280px !important;
+      gap: 20px !important;
+      align-items: start !important;
+      break-inside: avoid;
+    }
+
+    .desk-detail-grid > div {
+      box-shadow: none !important;
+      border: 1px solid #F5D0D8 !important;
+      break-inside: avoid;
+    }
   }
 `;
 
@@ -406,7 +453,7 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
 function DesktopDetail({ r, produtos, onEdit, onCopy, onDelete }) {
   const { ci, outros, total, porUn, semT, taxa, final: f_, lucro, lucroApp } = calc(r, produtos);
   return (
-    <div style={{padding:"28px 32px",animation:"fadein .2s ease"}}>
+    <div style={{padding:"28px 32px",animation:"fadein .2s ease"}} className="desk-detail-wrapper">
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:20}} className="no-print">
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <span style={{fontSize:36}}>{r.emoji}</span>
