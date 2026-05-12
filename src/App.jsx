@@ -28,14 +28,29 @@ const genId = () => typeof crypto !== "undefined" && crypto.randomUUID ? crypto.
 const pPreco = p => p.preco_ultimo !== undefined ? p.preco_ultimo : p.preco;
 const pEmb   = p => p.embalagem_qtd !== undefined ? p.embalagem_qtd : p.embalagemQtd;
 
-function calc(r, prods) {
+// calcCustosFixos: soma todos os custos fixos da config e retorna o % sobre faturamento
+function calcCustosFixos(cfg) {
+  if (!cfg || !cfg.faturamento_mensal || cfg.faturamento_mensal <= 0) return null;
+  const totalFixo = (parseFloat(cfg.custo_gas)||0) + (parseFloat(cfg.custo_energia)||0) +
+    (parseFloat(cfg.custo_agua)||0) + (parseFloat(cfg.custo_internet)||0) +
+    (parseFloat(cfg.custo_mei)||0) + (parseFloat(cfg.custo_transporte)||0) +
+    (parseFloat(cfg.custo_outros)||0);
+  return { totalFixo, pct: (totalFixo / parseFloat(cfg.faturamento_mensal)) * 100 };
+}
+
+function calc(r, prods, cfg) {
   const ci = r.ingredientes.reduce((s,i) => {
     const p = prods.find(x => x.id === i.produtoId);
     if (!p) return s;
     const eq = pEmb(p);
     return eq > 0 ? s + (pPreco(p) / eq) * i.usadoQtd : s;
   }, 0);
-  const pctOutros = (r.outrosCustos !== undefined ? r.outrosCustos : 30) / 100;
+
+  // Se tem config com faturamento, usa custos fixos reais; senão fallback para outrosCustos%
+  const cfgFixos = calcCustosFixos(cfg);
+  const pctOutros = cfgFixos ? cfgFixos.pct / 100 : (r.outrosCustos !== undefined ? r.outrosCustos : 30) / 100;
+  const usandoConfig = !!cfgFixos;
+
   const outros = ci * pctOutros;
   const total  = ci + outros + (r.despesas||0);
   const porUn  = r.rendimento > 0 ? total / r.rendimento : 0;
@@ -45,7 +60,18 @@ function calc(r, prods) {
   const taxa   = final_ - semT;
   const lucro    = (final_ - taxa - porUn) * r.rendimento;
   const lucroApp = r.precoApp > 0 ? (r.precoApp - (r.precoApp * tp) - porUn) * r.rendimento : null;
-  return { ci, outros, total, porUn, semT, taxa, final: final_, lucro, lucroApp };
+
+  // Simulação por canal (se config tem canais)
+  const canais = cfg?.canais_venda || [];
+  const simCanais = canais.map(ch => {
+    const t = (parseFloat(ch.taxa)||0) / 100;
+    const precoCanal = t < 1 ? semT / (1 - t) : semT;
+    const taxaCanal = precoCanal - semT;
+    const lucroCanal = (precoCanal - taxaCanal - porUn) * r.rendimento;
+    return { nome: ch.nome, taxa: ch.taxa, preco: precoCanal, lucro: lucroCanal };
+  });
+
+  return { ci, outros, pctOutros: pctOutros * 100, usandoConfig, total, porUn, semT, taxa, final: final_, lucro, lucroApp, simCanais };
 }
 
 // ─── CORES ─────────────────────────────────────────────────────────────────
@@ -293,6 +319,107 @@ function QuickProdModal({ open, onClose, negocioId, onProductSaved, toast_ }) {
 }
 
 // ─── FORM PRODUTO ─────────────────────────────────────────────
+function ConfigForm({ config, saving, onSaved, toast_ }) {
+  const [f, setF] = useState({ custo_gas:"", custo_energia:"", custo_agua:"", custo_internet:"", custo_mei:"", custo_transporte:"", custo_outros:"", faturamento_mensal:"", margem_padrao:"100", canais_venda:[] });
+  useEffect(() => {
+    if (config) setF({
+      custo_gas: String(config.custo_gas ?? "0"), custo_energia: String(config.custo_energia ?? "0"),
+      custo_agua: String(config.custo_agua ?? "0"), custo_internet: String(config.custo_internet ?? "0"),
+      custo_mei: String(config.custo_mei ?? "0"), custo_transporte: String(config.custo_transporte ?? "0"),
+      custo_outros: String(config.custo_outros ?? "0"), faturamento_mensal: String(config.faturamento_mensal ?? "0"),
+      margem_padrao: String(config.margem_padrao ?? "100"),
+      canais_venda: config.canais_venda || [{"nome":"Balcão","taxa":0},{"nome":"iFood","taxa":30},{"nome":"Cartão crédito","taxa":3.5},{"nome":"Cartão débito","taxa":1.5},{"nome":"Pix","taxa":0}],
+    });
+  }, [config?.id]);
+  const handleChange = (field, val) => setF(p => ({ ...p, [field]: val }));
+  const handleCanalChange = (idx, field, val) => setF(p => { const c=[...p.canais_venda]; c[idx]={...c[idx],[field]:field==="taxa"?parseFloat(val)||0:val}; return {...p, canais_venda:c}; });
+  const addCanal = () => setF(p => ({...p, canais_venda:[...p.canais_venda, {nome:"",taxa:0}]}));
+  const removeCanal = idx => setF(p => ({...p, canais_venda:p.canais_venda.filter((_,i)=>i!==idx)}));
+
+  const totalFixo = ["custo_gas","custo_energia","custo_agua","custo_internet","custo_mei","custo_transporte","custo_outros"].reduce((s,k) => s + (parseFloat(f[k])||0), 0);
+  const fat = parseFloat(f.faturamento_mensal)||0;
+  const pctFixo = fat > 0 ? (totalFixo / fat) * 100 : 0;
+
+  const handleSave = () => {
+    const payload = {
+      custo_gas: parseFloat(f.custo_gas)||0, custo_energia: parseFloat(f.custo_energia)||0,
+      custo_agua: parseFloat(f.custo_agua)||0, custo_internet: parseFloat(f.custo_internet)||0,
+      custo_mei: parseFloat(f.custo_mei)||0, custo_transporte: parseFloat(f.custo_transporte)||0,
+      custo_outros: parseFloat(f.custo_outros)||0, faturamento_mensal: parseFloat(f.faturamento_mensal)||0,
+      margem_padrao: parseFloat(f.margem_padrao)||100,
+      canais_venda: f.canais_venda.filter(c => c.nome.trim()),
+    };
+    onSaved(payload);
+  };
+
+  const custos = [
+    {key:"custo_gas",label:"Gás",icon:"🔥",placeholder:"60.00"},
+    {key:"custo_energia",label:"Energia elétrica",icon:"💡",placeholder:"150.00"},
+    {key:"custo_agua",label:"Água",icon:"💧",placeholder:"40.00"},
+    {key:"custo_internet",label:"Internet / Celular",icon:"📱",placeholder:"50.00"},
+    {key:"custo_mei",label:"MEI / DAS (imposto)",icon:"📋",placeholder:"72.00"},
+    {key:"custo_transporte",label:"Transporte / Gasolina",icon:"🚗",placeholder:"0.00"},
+    {key:"custo_outros",label:"Outros (limpeza, manut.)",icon:"📦",placeholder:"30.00"},
+  ];
+
+  return (
+    <>
+      <div style={s.sec}>
+        <div style={s.st}>💸 Custos Fixos Mensais</div>
+        <div style={s.help}>Informe a <b>média mensal</b> de cada gasto. Dica: soma as 3 últimas contas e divide por 3. Atualize a cada 3-6 meses.</div>
+        {custos.map(c => (
+          <div key={c.key} style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+            <span style={{fontSize:16,width:24,textAlign:"center"}}>{c.icon}</span>
+            <label style={{fontSize:12,color:V,fontWeight:500,width:160,flexShrink:0}}>{c.label}</label>
+            <div style={{position:"relative",flex:1}}>
+              <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:G}}>R$</span>
+              <input style={{...s.inp,marginBottom:0,paddingLeft:36,textAlign:"right"}} type="number" step="0.01" placeholder={c.placeholder} value={f[c.key]} onChange={e => handleChange(c.key, e.target.value)}/>
+            </div>
+          </div>
+        ))}
+        <div style={{background:`linear-gradient(135deg,${V},#6B2E44)`,borderRadius:12,padding:"14px 16px",color:W,margin:"12px 0"}}>
+          <div style={{fontSize:11,opacity:.8,marginBottom:3}}>Total fixo mensal</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700}}>{fmt(totalFixo)}</div>
+        </div>
+      </div>
+      <div style={s.sec}>
+        <div style={s.st}>💰 Faturamento Mensal</div>
+        <div style={s.help}>Quanto você fatura por mês em média? Pode ser uma estimativa. Isso calcula o % real dos custos fixos.</div>
+        <div style={{position:"relative"}}>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:G}}>R$</span>
+          <input style={{...s.inp,paddingLeft:36,textAlign:"right",fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:R}} type="number" step="0.01" placeholder="3500.00" value={f.faturamento_mensal} onChange={e => handleChange("faturamento_mensal", e.target.value)}/>
+        </div>
+        {fat > 0 && (
+          <div style={{background:pctFixo > 30 ? "#FFEBEE" : pctFixo > 20 ? "#FFF3CD" : "#E8F5E9", border:`1.5px solid ${pctFixo > 30 ? "#EF9A9A" : pctFixo > 20 ? "#FFC107" : "#81C784"}`, borderRadius:12, padding:"14px 16px", textAlign:"center"}}>
+            <div style={{fontSize:11,color:pctFixo>30?"#C62828":pctFixo>20?"#856404":"#2E7D32",fontWeight:600,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Seus custos fixos representam</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:pctFixo>30?"#C62828":pctFixo>20?"#856404":"#2E7D32"}}>{pctFixo.toFixed(1)}%</div>
+            <div style={{fontSize:11,color:G,marginTop:4}}>do faturamento ({fmt(totalFixo)} ÷ {fmt(fat)})</div>
+          </div>
+        )}
+      </div>
+      <div style={s.sec}>
+        <div style={s.st}>🏪 Canais de Venda</div>
+        <div style={s.help}>Configure as taxas de cada canal. O iFood geralmente cobra ~30%, cartão crédito ~3.5%, Pix 0%.</div>
+        {f.canais_venda.map((ch, idx) => (
+          <div key={idx} style={{display:"flex",gap:8,alignItems:"center",marginBottom:6}}>
+            <input style={{...s.inp,marginBottom:0,flex:1}} placeholder="Nome do canal" value={ch.nome} onChange={e => handleCanalChange(idx,"nome",e.target.value)}/>
+            <div style={{position:"relative",width:90}}>
+              <input style={{...s.inp,marginBottom:0,textAlign:"right",paddingRight:28}} type="number" step="0.1" placeholder="30" value={ch.taxa} onChange={e => handleCanalChange(idx,"taxa",e.target.value)}/>
+              <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:G}}>%</span>
+            </div>
+            <button style={{background:"none",border:"none",color:R,fontSize:14,cursor:"pointer",flexShrink:0}} onClick={() => removeCanal(idx)}>✕</button>
+          </div>
+        ))}
+        <button style={s.badd} onClick={addCanal}>+ Adicionar canal</button>
+      </div>
+      <div className="drawer-actions">
+        <button style={s.bsave} onClick={handleSave}>{saving ? "Salvando..." : "✅ Salvar Configuração"}</button>
+      </div>
+    </>
+  );
+}
+
+// ─── FORM PRODUTO (original) ──────────────────────────────────
 function ProdutoForm({ initialData, editId, recipes, saving, onSaved, onDelete, onCopy, toast_ }) {
   const [f, setF] = useState({ nome:"", preco_ultimo:"", embalagem_qtd:"", unidade:"g", categoria:"Secos", tipo:"ambos" });
   useEffect(() => { if (initialData) setF({ ...initialData, preco_ultimo: String(initialData.preco_ultimo ?? ""), embalagem_qtd: String(initialData.embalagem_qtd ?? "") }); }, [initialData?.id]);
@@ -380,8 +507,17 @@ function ReceitaForm({ initialData, editId, produtos, saving, onSaved, onOpenQui
           <div><label style={s.lbl}>Margem de lucro (%)</label><input style={{...s.inp,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:R,textAlign:"center"}} type="number" min={0} step={1} placeholder="100" value={f.margem||""} onChange={e => handleChange("margem",parseFloat(e.target.value)||0)}/></div>
           <div><label style={s.lbl}>Taxa delivery (%)</label><input style={{...s.inp,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:R,textAlign:"center"}} type="number" min={0} step={1} placeholder="30" value={f.taxaDelivery||""} onChange={e => handleChange("taxaDelivery",parseFloat(e.target.value)||0)}/></div>
         </div>
-        <label style={s.lbl}>Outros custos — gás, energia, etc. (%)</label>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><input style={{...s.inp,marginBottom:0,width:90,fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:R,textAlign:"center"}} type="number" min={0} step={1} placeholder="30" value={f.outrosCustos!==undefined?f.outrosCustos:30} onChange={e => handleChange("outrosCustos",parseFloat(e.target.value)||0)}/><div style={{fontSize:12,color:G}}>= {fmt(c.outros)} sobre ingredientes</div></div>
+        {c.usandoConfig ? (
+          <div style={{background:"#E8F5E9",border:"1px solid #81C784",borderRadius:9,padding:"10px 12px",marginBottom:10}}>
+            <div style={{fontSize:11,fontWeight:600,color:"#2E7D32",marginBottom:2}}>⚙️ Custo Fixo Automático ({c.pctOutros.toFixed(1)}%)</div>
+            <div style={{fontSize:10,color:"#2E7D32",opacity:0.8}}>Calculado com base nas suas Configurações Globais.</div>
+          </div>
+        ) : (
+          <>
+            <label style={s.lbl}>Outros custos — gás, energia, etc. (%)</label>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><input style={{...s.inp,marginBottom:0,width:90,fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:R,textAlign:"center"}} type="number" min={0} step={1} placeholder="30" value={f.outrosCustos!==undefined?f.outrosCustos:30} onChange={e => handleChange("outrosCustos",parseFloat(e.target.value)||0)}/><div style={{fontSize:12,color:G}}>= {fmt(c.outros)} sobre ingredientes</div></div>
+          </>
+        )}
         {c.porUn > 0 && <div style={{...s.tag,marginBottom:10}}>💡 {fmt(c.porUn)} × {f.margem||0}% margem ÷ {100-(f.taxaDelivery||30)}% = {fmt(c.final)}</div>}
         <div className="desk-row">
           <div><label style={s.lbl}>Despesas extras</label><input style={s.inp} type="number" step="0.01" placeholder="0,00" value={f.despesas||""} onChange={e => handleChange("despesas",parseFloat(e.target.value)||0)}/></div>
@@ -875,9 +1011,10 @@ export default function App() {
   const [searchR,setSearchR]=useState(""); const [catR,setCatR]=useState("Todos"); const [searchP,setSearchP]=useState(""); const [catP,setCatP]=useState("Todos");
   const [toast,setToast]=useState(""); const [confirmDel,setConfirmDel]=useState(null); const [viewRel,setViewRel]=useState(false); const [quickPOpen,setQuickPOpen]=useState(false);
   const [searchC,setSearchC]=useState(""); const [mesFiltroC,setMesFiltroC]=useState("Todos"); const [compraDetalhe,setCompraDetalhe]=useState(null); const [compraItens,setCompraItens]=useState({}); const [mapaUsuarios,setMapaUsuarios]=useState({});
+  const [config,setConfig]=useState(null); const [viewConfig,setViewConfig]=useState(false);
 
   const toast_ = useCallback(msg => { setToast(msg); setTimeout(() => setToast(""), 2800); }, []);
-  const recipesCalc = useMemo(() => recipes.map(r => ({ ...r, _calc: calc(r, produtos) })), [recipes, produtos]);
+  const recipesCalc = useMemo(() => recipes.map(r => ({ ...r, _calc: calc(r, produtos, config) })), [recipes, produtos, config]);
 
   async function setupNegocio(userId, userMeta) {
     const { data: membro, error: errM } = await supabase.from("membros").select("negocio_id").eq("user_id", userId).maybeSingle();
@@ -896,16 +1033,18 @@ export default function App() {
     try {
       const { nId, nNome } = await setupNegocio(sessionUser.id, sessionUser.user_metadata);
       setNegocioId(nId); setNegocioNome(nNome);
-      const [rRes, pRes, cRes, mRes] = await Promise.all([
+      const [rRes, pRes, cRes, mRes, cfgRes] = await Promise.all([
         supabase.from("receitas").select("id, dados").eq("negocio_id", nId).maybeSingle(),
         supabase.from("produtos_v2").select("*").eq("negocio_id", nId).eq("ativo", true).order("nome"),
         supabase.from("vw_compras_listagem").select("*").eq("negocio_id", nId).order("data_compra", { ascending: false }).limit(100),
         supabase.from("membros").select("user_id").eq("negocio_id", nId),
+        supabase.from("config_negocio").select("*").eq("negocio_id", nId).maybeSingle(),
       ]);
       if (rRes.data?.id) { setReceitasRowId(rRes.data.id); setRecipes(rRes.data.dados || []); } else setRecipes(SEED_RECIPES);
       if (pRes.data) setProdutos(pRes.data.map(p => ({ ...p, preco: p.preco_ultimo, embalagemQtd: p.embalagem_qtd })));
       if (cRes.data) setCompras(cRes.data);
       if (mRes.data) { const map = {}; mRes.data.forEach(m => { map[m.user_id] = m.user_id === sessionUser.id ? (sessionUser.email?.split("@")[0] || "Eu") : "Membro"; }); setMapaUsuarios(map); }
+      if (cfgRes.data) setConfig(cfgRes.data);
     } catch(e) { console.error(e); setRecipes(SEED_RECIPES); }
     clearTimeout(timeout); setLoading(false); setAppReady(true);
   }
@@ -924,10 +1063,11 @@ export default function App() {
   const saveR = useCallback(async (dados) => { setSaving(true); try { if (receitasRowId) await supabase.from("receitas").update({ dados, atualizado_em: new Date().toISOString() }).eq("id", receitasRowId); else { const { data } = await supabase.from("receitas").insert({ negocio_id: negocioId, dados }).select("id").single(); if (data) setReceitasRowId(data.id); } } catch(e) { console.error(e); } setSaving(false); }, [receitasRowId, negocioId]);
   const reloadProdutos = useCallback(async () => { const { data } = await supabase.from("produtos_v2").select("*").eq("negocio_id", negocioId).eq("ativo", true).order("nome"); if (data) setProdutos(data.map(p => ({ ...p, preco: p.preco_ultimo, embalagemQtd: p.embalagem_qtd }))); }, [negocioId]);
   const reloadCompras = useCallback(async () => { const { data } = await supabase.from("vw_compras_listagem").select("*").eq("negocio_id", negocioId).order("data_compra", { ascending: false }).limit(100); if (data) setCompras(data); }, [negocioId]);
+  const handleSaveConfig = useCallback(async (payload) => { setSaving(true); try { if (config?.id) { await supabase.from("config_negocio").update(payload).eq("id", config.id); setConfig({ ...config, ...payload }); } else { const { data } = await supabase.from("config_negocio").insert({ negocio_id: negocioId, ...payload }).select("*").single(); if (data) setConfig(data); } toast_("✅ Configuração salva!"); setViewConfig(false); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); }, [config, negocioId, toast_]);
 
   const fazerLogin = async () => { if (!authForm.email || !authForm.senha) { setAuthError("Preencha email e senha"); return; } setAuthLoading(true); setAuthError(""); const { error } = await supabase.auth.signInWithPassword({ email: authForm.email.trim(), password: authForm.senha }); if (error) setAuthError("Email ou senha incorretos ❌"); setAuthLoading(false); };
   const fazerCadastro = async () => { if (!authForm.nomeNegocio.trim()) { setAuthError("Informe o nome do negócio ⚠️"); return; } if (!authForm.email.trim()) { setAuthError("Informe seu email ⚠️"); return; } if (authForm.senha.length < 6) { setAuthError("Senha: mín. 6 caracteres ⚠️"); return; } setAuthLoading(true); setAuthError(""); const { error } = await supabase.auth.signUp({ email: authForm.email.trim(), password: authForm.senha, options: { data: { nome_negocio: authForm.nomeNegocio.trim() } } }); if (error) setAuthError(error.message); else setAuthView("emailConfirm"); setAuthLoading(false); };
-  const fazerLogout = async () => { try { await supabase.auth.signOut({ scope: "local" }); } catch(e) {} try { Object.keys(localStorage).forEach(k => { if (k.startsWith("sb-") || k.includes("delicias-jay-auth")) localStorage.removeItem(k); }); } catch(e) {} setUser(null); setNegocioId(null); setNegocioNome(""); setRecipes([]); setProdutos([]); setCompras([]); setReceitasRowId(null); setView("list"); setTab("receitas"); setAuthView("login"); setAuthForm({ email:"", senha:"", nomeNegocio:"" }); };
+  const fazerLogout = async () => { try { await supabase.auth.signOut({ scope: "local" }); } catch(e) {} try { Object.keys(localStorage).forEach(k => { if (k.startsWith("sb-") || k.includes("delicias-jay-auth")) localStorage.removeItem(k); }); } catch(e) {} setUser(null); setNegocioId(null); setNegocioNome(""); setRecipes([]); setProdutos([]); setCompras([]); setConfig(null); setReceitasRowId(null); setView("list"); setTab("receitas"); setAuthView("login"); setAuthForm({ email:"", senha:"", nomeNegocio:"" }); };
 
   const openNewP = () => { setPFormInit({ nome:"", preco_ultimo:"", embalagem_qtd:"", unidade:"g", categoria:"Secos", tipo:"ambos", id: genId() }); setEditPId(null); setView("pForm"); };
   const openEditP = id => { const p = produtos.find(x => x.id === id); if (p) setPFormInit(p); setEditPId(id); setView("pForm"); };
@@ -986,7 +1126,7 @@ export default function App() {
     <>
       {/* ── BACKGROUND LIST MOBILE ── */}
       <div style={s.app} className="mobile-only">
-        <header style={s.hdr}><div><div style={s.logo}>{negocioNome||"Fichas Técnicas"}</div><div style={s.lsub}>Gestão</div></div><div style={{display:"flex",gap:7,alignItems:"center"}}><button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)}>📊</button><button style={s.bpri} onClick={newAction}>+ {newLabel}</button><button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout}>🚪</button></div></header>
+        <header style={s.hdr}><div><div style={s.logo}>{negocioNome||"Fichas Técnicas"}</div><div style={s.lsub}>Gestão</div></div><div style={{display:"flex",gap:7,alignItems:"center"}}><button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewRel(true)}>📊</button><button style={{...s.bpri,background:"rgba(255,255,255,.15)",fontSize:12,padding:"8px 12px"}} onClick={() => setViewConfig(true)}>⚙️</button><button style={s.bpri} onClick={newAction}>+ {newLabel}</button><button style={{background:"rgba(255,255,255,.1)",border:"none",color:RL,borderRadius:50,padding:"8px 12px",fontSize:13,cursor:"pointer"}} onClick={fazerLogout}>🚪</button></div></header>
         <div style={s.tabs}><button style={{...s.tab,...(tab==="receitas"?s.taba:{})}} onClick={() => setTab("receitas")}>🍰 Receitas</button><button style={{...s.tab,...(tab==="produtos"?s.taba:{})}} onClick={() => setTab("produtos")}>📦 Produtos</button><button style={{...s.tab,...(tab==="compras"?s.taba:{})}} onClick={() => setTab("compras")}>💸 Compras</button></div>
         {tab==="receitas"&&<><div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar receita..." value={searchR} onChange={e => setSearchR(e.target.value)}/></div><div style={s.chips}>{["Todos",...CAT_R].map(c => <button key={c} style={{...s.chip,...(catR===c?s.chipa:{})}} onClick={() => setCatR(c)}>{c}</button>)}</div><div style={s.cnt}>{filtR.length} receita{filtR.length!==1?"s":""}</div>{listaReceitas}</>}
         {tab==="produtos"&&<><div style={s.srchW}><span style={{position:"absolute",left:13,top:"50%",transform:"translateY(-50%)",fontSize:13}}>🔍</span><input style={s.srch} placeholder="Buscar produto..." value={searchP} onChange={e => setSearchP(e.target.value)}/></div><div style={s.chips}>{["Todos",...CAT_P].map(c => <button key={c} style={{...s.chip,...(catP===c?s.chipa:{})}} onClick={() => setCatP(c)}>{c}</button>)}</div><div style={s.cnt}>{filtP.length} produto{filtP.length!==1?"s":""}</div>{listaProdutos}</>}
@@ -1006,6 +1146,7 @@ export default function App() {
           <div style={{padding:"12px",borderTop:"1px solid rgba(255,255,255,.1)",display:"flex",gap:6}}>
             <button className="btn-h" style={{flex:1,padding:"8px",borderRadius:8,border:"none",background:R,color:W,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={newAction}>+ {newLabel}</button>
             <button className="btn-h" style={{padding:"8px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"transparent",color:"rgba(255,255,255,.6)",fontSize:12,cursor:"pointer"}} onClick={() => setViewRel(true)}>📊</button>
+            <button className="btn-h" style={{padding:"8px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"transparent",color:"rgba(255,255,255,.6)",fontSize:12,cursor:"pointer"}} onClick={() => setViewConfig(true)}>⚙️</button>
             <button className="btn-h" style={{padding:"8px 10px",borderRadius:8,border:"1px solid rgba(255,255,255,.2)",background:"transparent",color:"rgba(255,255,255,.6)",fontSize:12,cursor:"pointer"}} onClick={fazerLogout}>🚪</button>
           </div>
         </div>
@@ -1051,6 +1192,12 @@ export default function App() {
       <QuickProdModal open={quickPOpen} onClose={() => setQuickPOpen(false)} negocioId={negocioId} onProductSaved={reloadProdutos} toast_={toast_}/>
       
       {viewRel && <RelatoriosPanel recipesCalc={recipesCalc} produtos={produtos} compras={compras} filtP={filtP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} onClose={() => setViewRel(false)} onExportCSV={exportarCSV}/>}
+      
+      {viewConfig && (
+        <ResponsiveDrawer title="⚙️ Custos e Configuração" onClose={() => setViewConfig(false)}>
+          <ConfigForm config={config} saving={saving} onSaved={handleSaveConfig} toast_={toast_}/>
+        </ResponsiveDrawer>
+      )}
       
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
