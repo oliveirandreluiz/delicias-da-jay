@@ -449,6 +449,353 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
   );
 }
 
+// ─── MINI BAR CHART (SVG puro — sem dependência) ─────────────
+function MiniBarChart({ data, color = R, height = 110 }) {
+  if (!data || data.length === 0) return <div style={{textAlign:"center",padding:20,color:G,fontSize:12}}>Sem dados</div>;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const barW = Math.max(24, Math.floor(260 / data.length));
+  const gap = 4;
+  const totalW = data.length * (barW + gap);
+  return (
+    <div style={{overflowX:"auto",scrollbarWidth:"none"}}>
+      <svg width={totalW} height={height + 24} style={{display:"block"}}>
+        {data.map((d, i) => {
+          const h = (d.value / max) * height;
+          const x = i * (barW + gap);
+          return (
+            <g key={i}>
+              <rect x={x} y={height - h} width={barW} height={h} rx={4} fill={color} opacity={0.85} />
+              <text x={x + barW / 2} y={height - h - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill={V}>{d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value > 0 ? d.value : ""}</text>
+              <text x={x + barW / 2} y={height + 14} textAnchor="middle" fontSize={9} fill={G}>{d.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ─── STAT CARD ────────────────────────────────────────────────
+function StatCard({ emoji, label, value, sub, accent = R }) {
+  return (
+    <div style={{background:W,borderRadius:14,padding:"16px 18px",boxShadow:`0 2px 8px rgba(74,26,44,.06)`,border:`1.5px solid ${RC}`,display:"flex",alignItems:"center",gap:14}}>
+      <div style={{width:44,height:44,borderRadius:12,background:`${accent}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{emoji}</div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:10,fontWeight:600,color:G,textTransform:"uppercase",letterSpacing:".04em"}}>{label}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:V,marginTop:2}}>{value}</div>
+        {sub && <div style={{fontSize:11,color:accent,fontWeight:500,marginTop:1}}>{sub}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── DASHBOARD HOME (desktop — quando nenhum item está selecionado) ──
+function DashboardHome({ recipesCalc, produtos, compras, fmt, fmtN, pPreco, pEmb }) {
+  // KPIs de receitas
+  const totalReceitas = recipesCalc.length;
+  const totalProdutos = produtos.length;
+  const margemMedia = totalReceitas > 0 ? recipesCalc.reduce((s,r) => s + (r.margem||0), 0) / totalReceitas : 0;
+  const custoMedio = totalReceitas > 0 ? recipesCalc.reduce((s,r) => s + r._calc.porUn, 0) / totalReceitas : 0;
+  const lucroTotalSugerido = recipesCalc.reduce((s,r) => s + r._calc.lucro, 0);
+
+  // KPIs de compras (mês atual)
+  const hoje = new Date();
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}`;
+  const comprasMes = compras.filter(c => c.data_compra?.startsWith(mesAtual));
+  const totalComprasMes = comprasMes.reduce((s,c) => s + parseFloat(c.valor_total||0), 0);
+  const totalComprasGeral = compras.reduce((s,c) => s + parseFloat(c.valor_total||0), 0);
+
+  // Gráfico de compras por mês (últimos 6 meses)
+  const meses = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    const label = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][d.getMonth()];
+    const val = compras.filter(c => c.data_compra?.startsWith(key)).reduce((s,c) => s + parseFloat(c.valor_total||0), 0);
+    meses.push({ label, value: Math.round(val) });
+  }
+
+  // Top receitas por lucro
+  const topReceitas = [...recipesCalc].sort((a,b) => b._calc.lucro - a._calc.lucro).slice(0,5);
+
+  // Produtos mais usados em receitas
+  const prodUso = {};
+  recipesCalc.forEach(r => r.ingredientes.forEach(i => { if(i.produtoId) prodUso[i.produtoId] = (prodUso[i.produtoId]||0) + 1; }));
+  const topProdutos = Object.entries(prodUso).sort((a,b) => b[1] - a[1]).slice(0,5).map(([id,count]) => {
+    const p = produtos.find(x => x.id === id);
+    return p ? { nome: p.nome, count, custo: pPreco(p) } : null;
+  }).filter(Boolean);
+
+  // Alertas
+  const semIngrediente = recipesCalc.filter(r => r.ingredientes.filter(i=>i.produtoId).length === 0);
+  const margemBaixa = recipesCalc.filter(r => r.margem < 50);
+
+  return (
+    <div style={{padding:"28px 32px",animation:"fadein .3s ease",overflowY:"auto"}}>
+      {/* HEADER */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24}}>
+        <div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:V,margin:0}}>Painel Geral</h1>
+          <div style={{fontSize:12,color:G,marginTop:4}}>Visão geral do seu negócio</div>
+        </div>
+        <div style={{fontSize:12,color:G,display:"flex",alignItems:"center",gap:6}}>
+          📅 {hoje.toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"})}
+        </div>
+      </div>
+
+      {/* KPI CARDS */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:12,marginBottom:24}}>
+        <StatCard emoji="🍰" label="Receitas" value={totalReceitas} sub={`Margem média: ${margemMedia.toFixed(0)}%`} accent={R}/>
+        <StatCard emoji="📦" label="Produtos" value={totalProdutos} sub={`Custo médio/un: ${fmt(custoMedio)}`} accent="#1565C0"/>
+        <StatCard emoji="🛒" label="Compras do Mês" value={fmt(totalComprasMes)} sub={`${comprasMes.length} compra${comprasMes.length!==1?"s":""}`} accent="#E65100"/>
+        <StatCard emoji="💰" label="Lucro Potencial" value={fmt(lucroTotalSugerido)} sub="Soma de todas as receitas" accent="#2E7D32"/>
+      </div>
+
+      {/* GRÁFICO + TOP RECEITAS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
+        {/* Gráfico de compras */}
+        <div style={{background:W,borderRadius:14,padding:"18px 20px",boxShadow:`0 2px 8px rgba(74,26,44,.06)`,border:`1.5px solid ${RC}`}}>
+          <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:14,fontFamily:"'Playfair Display',serif"}}>💸 Compras por Mês</div>
+          {compras.length > 0 ? <MiniBarChart data={meses} color="#E65100" height={100}/> : <div style={{textAlign:"center",padding:"30px 0",color:G,fontSize:12}}>Registre compras para ver o gráfico</div>}
+          <div style={{textAlign:"right",marginTop:8,fontSize:11,color:G}}>Total geral: <strong style={{color:V}}>{fmt(totalComprasGeral)}</strong></div>
+        </div>
+
+        {/* Top receitas por lucro */}
+        <div style={{background:W,borderRadius:14,padding:"18px 20px",boxShadow:`0 2px 8px rgba(74,26,44,.06)`,border:`1.5px solid ${RC}`}}>
+          <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:14,fontFamily:"'Playfair Display',serif"}}>🏆 Top Receitas por Lucro</div>
+          {topReceitas.length > 0 ? topReceitas.map((r,i) => (
+            <div key={r.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<topReceitas.length-1?`1px solid ${RC}`:"none"}}>
+              <div style={{width:24,height:24,borderRadius:7,background:i===0?`linear-gradient(135deg,${R},${RL})`:i===1?"#FCD34D":RC,color:i<2?W:V,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
+              <span style={{fontSize:18,flexShrink:0}}>{r.emoji}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:V,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nome}</div>
+                <div style={{fontSize:10,color:G}}>Margem {r.margem}% · {fmt(r._calc.final)}/un</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:"#2E7D32"}}>{fmt(r._calc.lucro)}</div>
+                <div style={{fontSize:9,color:G}}>lucro/lote</div>
+              </div>
+            </div>
+          )) : <div style={{textAlign:"center",padding:"30px 0",color:G,fontSize:12}}>Cadastre receitas para ver o ranking</div>}
+        </div>
+      </div>
+
+      {/* PRODUTOS MAIS USADOS + ALERTAS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        {/* Produtos mais usados */}
+        <div style={{background:W,borderRadius:14,padding:"18px 20px",boxShadow:`0 2px 8px rgba(74,26,44,.06)`,border:`1.5px solid ${RC}`}}>
+          <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:14,fontFamily:"'Playfair Display',serif"}}>📦 Insumos Mais Usados</div>
+          {topProdutos.length > 0 ? topProdutos.map((p,i) => (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<topProdutos.length-1?`1px solid ${RC}`:"none"}}>
+              <div style={{width:24,height:24,borderRadius:7,background:`${R}15`,color:R,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>{p.count}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:500,color:V,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.nome}</div>
+              </div>
+              <div style={{fontSize:12,fontWeight:600,color:R,flexShrink:0}}>{fmt(p.custo)}</div>
+            </div>
+          )) : <div style={{textAlign:"center",padding:"30px 0",color:G,fontSize:12}}>Adicione ingredientes às receitas</div>}
+        </div>
+
+        {/* Alertas */}
+        <div style={{background:W,borderRadius:14,padding:"18px 20px",boxShadow:`0 2px 8px rgba(74,26,44,.06)`,border:`1.5px solid ${RC}`}}>
+          <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:14,fontFamily:"'Playfair Display',serif"}}>⚠️ Alertas</div>
+          {semIngrediente.length > 0 && (
+            <div style={{background:"#FFF3CD",border:"1.5px solid #FFC107",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#856404"}}>🧂 {semIngrediente.length} receita{semIngrediente.length>1?"s":""} sem ingredientes</div>
+              <div style={{fontSize:10,color:"#856404",marginTop:3,opacity:.8}}>{semIngrediente.map(r=>r.nome).join(", ")}</div>
+            </div>
+          )}
+          {margemBaixa.length > 0 && (
+            <div style={{background:"#FFEBEE",border:"1.5px solid #EF9A9A",borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+              <div style={{fontSize:11,fontWeight:600,color:"#C62828"}}>📉 {margemBaixa.length} receita{margemBaixa.length>1?"s":""} com margem abaixo de 50%</div>
+              <div style={{fontSize:10,color:"#C62828",marginTop:3,opacity:.8}}>{margemBaixa.map(r=>`${r.nome} (${r.margem}%)`).join(", ")}</div>
+            </div>
+          )}
+          {semIngrediente.length === 0 && margemBaixa.length === 0 && (
+            <div style={{background:"#E8F5E9",border:"1.5px solid #81C784",borderRadius:10,padding:"14px 12px",textAlign:"center"}}>
+              <div style={{fontSize:22,marginBottom:6}}>✅</div>
+              <div style={{fontSize:12,fontWeight:600,color:"#2E7D32"}}>Tudo certo!</div>
+              <div style={{fontSize:11,color:"#2E7D32",opacity:.7,marginTop:2}}>Nenhum alerta no momento</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── RELATÓRIOS PANEL (substitui o modal simples) ────────────
+function RelatoriosPanel({ recipesCalc, produtos, compras, filtP, fmt, fmtN, pPreco, pEmb, onClose, onExportCSV }) {
+  const [relTab, setRelTab] = useState("receitas");
+
+  // Cálculos globais
+  const totalCustoReceitas = recipesCalc.reduce((s,r) => s + r._calc.total, 0);
+  const totalLucroSugerido = recipesCalc.reduce((s,r) => s + r._calc.lucro, 0);
+  const margemMedia = recipesCalc.length > 0 ? recipesCalc.reduce((s,r) => s + (r.margem||0), 0) / recipesCalc.length : 0;
+
+  // Compras por mês para gráfico
+  const hoje = new Date();
+  const meses = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+    const label = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][d.getMonth()];
+    const val = compras.filter(c => c.data_compra?.startsWith(key)).reduce((s,c) => s + parseFloat(c.valor_total||0), 0);
+    meses.push({ label, value: Math.round(val) });
+  }
+
+  // Lucro por receita para gráfico
+  const lucroData = recipesCalc.slice(0,8).map(r => ({ label: r.nome.substring(0,8), value: Math.round(r._calc.lucro) }));
+
+  // Distribuição por categoria
+  const catDist = {};
+  recipesCalc.forEach(r => { const cat = r.categoria||"Sem categoria"; catDist[cat] = (catDist[cat]||0) + 1; });
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:16,backdropFilter:"blur(2px)"}}>
+      <div style={{background:CR,borderRadius:20,width:"100%",maxWidth:720,maxHeight:"90vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(74,26,44,.2)"}}>
+        {/* Header */}
+        <div style={{padding:"20px 24px",background:W,borderBottom:`1.5px solid ${RC}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,color:V,fontWeight:700}}>📊 Relatórios</div>
+            <div style={{fontSize:11,color:G,marginTop:2}}>Análise completa do seu negócio</div>
+          </div>
+          <button style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:G,padding:4}} onClick={onClose}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:0,borderBottom:`1.5px solid ${RC}`,background:W,flexShrink:0}}>
+          {[{k:"receitas",l:"🍰 Receitas"},{k:"produtos",l:"📦 Produtos"},{k:"compras",l:"💸 Compras"}].map(t => (
+            <button key={t.k} onClick={() => setRelTab(t.k)} style={{flex:1,padding:"12px 8px",border:"none",background:"none",fontSize:12,fontWeight:600,color:relTab===t.k?R:`${G}88`,cursor:"pointer",borderBottom:relTab===t.k?`3px solid ${R}`:"3px solid transparent",fontFamily:"'DM Sans',sans-serif"}}>{t.l}</button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+
+          {/* ── TAB RECEITAS ── */}
+          {relTab === "receitas" && <>
+            {/* KPIs */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+              <StatCard emoji="🍰" label="Total Receitas" value={recipesCalc.length} accent={R}/>
+              <StatCard emoji="📊" label="Margem Média" value={`${margemMedia.toFixed(0)}%`} accent={margemMedia>=60?"#2E7D32":"#E65100"}/>
+              <StatCard emoji="💰" label="Lucro Potencial" value={fmt(totalLucroSugerido)} accent="#2E7D32"/>
+            </div>
+
+            {/* Gráfico de lucro */}
+            {lucroData.length > 0 && (
+              <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`,marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Lucro por Receita</div>
+                <MiniBarChart data={lucroData} color="#2E7D32" height={90}/>
+              </div>
+            )}
+
+            {/* Categorias */}
+            {Object.keys(catDist).length > 0 && (
+              <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`,marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Por Categoria</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {Object.entries(catDist).map(([cat,count]) => (
+                    <div key={cat} style={{background:`${R}12`,borderRadius:8,padding:"8px 12px",fontSize:12}}>
+                      <span style={{fontWeight:600,color:V}}>{cat}</span>
+                      <span style={{color:R,fontWeight:700,marginLeft:6}}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lista detalhada */}
+            <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Detalhamento</div>
+              {recipesCalc.map(r => {
+                const c = r._calc;
+                const margemCor = r.margem >= 80 ? "#2E7D32" : r.margem >= 50 ? "#E65100" : "#C62828";
+                return (
+                  <div key={r.id} style={{borderBottom:`1px solid ${RC}`,padding:"10px 0",display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:20,flexShrink:0}}>{r.emoji}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:V,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nome}</div>
+                      <div style={{fontSize:10,color:G,marginTop:2}}>Custo {fmt(c.porUn)}/un · Rend. {r.rendimento} un.</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:R}}>{fmt(c.final)}<span style={{fontSize:10,fontWeight:400,color:G}}>/un</span></div>
+                      <div style={{display:"flex",gap:6,justifyContent:"flex-end",marginTop:3}}>
+                        <span style={{fontSize:10,fontWeight:600,color:margemCor,background:`${margemCor}15`,padding:"2px 6px",borderRadius:4}}>{r.margem}%</span>
+                        <span style={{fontSize:10,fontWeight:600,color:"#2E7D32"}}>{fmt(c.lucro)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button style={{...s.bsave,marginTop:0,padding:12,fontSize:13}} onClick={() => onExportCSV("receitas")}>⬇️ Exportar Receitas CSV</button>
+          </>}
+
+          {/* ── TAB PRODUTOS ── */}
+          {relTab === "produtos" && <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:20}}>
+              <StatCard emoji="📦" label="Produtos Ativos" value={filtP.length} accent="#1565C0"/>
+              <StatCard emoji="💵" label="Investimento Médio" value={fmt(filtP.length > 0 ? filtP.reduce((s,p) => s + pPreco(p), 0) / filtP.length : 0)} accent="#E65100"/>
+            </div>
+            <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Lista de Produtos</div>
+              {filtP.slice(0,30).map((p,i) => {
+                const pu = pEmb(p) ? pPreco(p) / pEmb(p) : 0;
+                const usedIn = recipesCalc.filter(r => r.ingredientes.some(ing => ing.produtoId === p.id)).length;
+                return (
+                  <div key={p.id} style={{borderBottom:`1px solid ${RC}`,padding:"8px 0",display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:16,flexShrink:0}}>{CATEMOJI[p.categoria]||"📦"}</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:V,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.nome}</div>
+                      <div style={{fontSize:10,color:G,marginTop:1}}>{p.categoria} · R$ {fmtN(pu)}/{p.unidade} {usedIn > 0 ? `· ${usedIn} receita${usedIn>1?"s":""}` : ""}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:13,fontWeight:700,color:R}}>{fmt(pPreco(p))}</div>
+                      <div style={{fontSize:10,color:G}}>{pEmb(p)}{p.unidade}</div>
+                    </div>
+                  </div>
+                );
+              })}
+              {filtP.length > 30 && <div style={{fontSize:11,color:G,padding:"8px 0"}}>...e mais {filtP.length - 30} no CSV</div>}
+            </div>
+            <button style={{...s.bsave,marginTop:0,padding:12,fontSize:13}} onClick={() => onExportCSV("produtos")}>⬇️ Exportar Produtos CSV</button>
+          </>}
+
+          {/* ── TAB COMPRAS ── */}
+          {relTab === "compras" && <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+              <StatCard emoji="🛒" label="Total Compras" value={compras.length} accent="#E65100"/>
+              <StatCard emoji="💸" label="Valor Total" value={fmt(compras.reduce((s,c) => s + parseFloat(c.valor_total||0), 0))} accent="#C62828"/>
+              <StatCard emoji="📅" label="Mês Atual" value={fmt(compras.filter(c=>c.data_compra?.startsWith(new Date().toISOString().substring(0,7))).reduce((s,c) => s+parseFloat(c.valor_total||0),0))} accent="#1565C0"/>
+            </div>
+            {/* Gráfico mensal */}
+            <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Compras por Mês</div>
+              {compras.length > 0 ? <MiniBarChart data={meses} color="#E65100" height={100}/> : <div style={{textAlign:"center",padding:"30px 0",color:G,fontSize:12}}>Sem dados de compras</div>}
+            </div>
+            {/* Lista das últimas compras */}
+            <div style={{background:W,borderRadius:14,padding:"16px 18px",border:`1.5px solid ${RC}`}}>
+              <div style={{fontSize:13,fontWeight:700,color:V,marginBottom:12,fontFamily:"'Playfair Display',serif"}}>Últimas Compras</div>
+              {compras.slice(0,15).map((c,i) => (
+                <div key={c.id} style={{borderBottom:`1px solid ${RC}`,padding:"8px 0",display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:16,flexShrink:0}}>🛒</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:V}}>{c.fornecedor||"Sem fornecedor"}</div>
+                    <div style={{fontSize:10,color:G,marginTop:1}}>{new Date(c.data_compra+"T12:00:00").toLocaleDateString("pt-BR")} · {c.forma_pagamento||""}</div>
+                  </div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:R,flexShrink:0}}>{fmt(c.valor_total)}</div>
+                </div>
+              ))}
+              {compras.length === 0 && <div style={{textAlign:"center",padding:"20px 0",color:G,fontSize:12}}>Nenhuma compra registrada</div>}
+            </div>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── DETALHES NO DESKTOP ──────────────────────────────────────
 function DesktopDetail({ r, produtos, onEdit, onCopy, onDelete }) {
   const { ci, outros, total, porUn, semT, taxa, final: f_, lucro, lucroApp } = calc(r, produtos);
@@ -663,7 +1010,7 @@ export default function App() {
           </div>
         </div>
         <div className="desk-main">
-          {view==="list"&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",flexDirection:"column",gap:12}}><div style={{fontSize:64}}>{tab==="receitas"?"🍰":tab==="produtos"?"📦":"🛒"}</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:G}}>Selecione {tab==="receitas"?"uma receita":tab==="produtos"?"um produto":"uma compra"}</div></div>}
+          {view==="list"&&<DashboardHome recipesCalc={recipesCalc} produtos={produtos} compras={compras} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb}/>}
           
           {/* DETALHES RENDERIZAM NO DESK-MAIN (Painel principal à direita) */}
           {view==="detail"&&(()=>{const r=recipesCalc.find(x=>x.id===detailId);if(!r)return null;return<DesktopDetail r={r} produtos={produtos} onEdit={()=>openEditR(r.id)} onCopy={()=>copiarReceita(r.id)} onDelete={()=>pedirExcR(r.id)}/>;})()}
@@ -703,7 +1050,7 @@ export default function App() {
       <ModalConfirm item={confirmDel} onConfirm={confirmarExc} onCancel={() => setConfirmDel(null)}/>
       <QuickProdModal open={quickPOpen} onClose={() => setQuickPOpen(false)} negocioId={negocioId} onProductSaved={reloadProdutos} toast_={toast_}/>
       
-      {viewRel && (<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"flex-end"}}><div style={{background:W,borderRadius:"18px 18px 0 0",padding:20,width:"100%",maxWidth:520,margin:"0 auto",maxHeight:"85vh",overflowY:"auto"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><div style={{fontFamily:"'Playfair Display',serif",fontSize:17,color:V}}>📊 Relatórios</div><button style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:G}} onClick={() => setViewRel(false)}>✕</button></div><div style={{...s.sec,marginBottom:10}}><div style={s.st}>🍰 Receitas ({recipesCalc.length})</div>{recipesCalc.map(r=><div key={r.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"7px 0",fontSize:12}}><div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{r.emoji} {r.nome}</span><span style={{color:R}}>{fmt(r._calc.final)}/un</span></div><div style={{display:"flex",justifyContent:"space-between",color:G,marginTop:2}}><span>Custo {fmt(r._calc.porUn)}/un · Margem {r.margem}%</span><span style={{color:"#92400E"}}>Lucro {fmt(r._calc.lucro)}</span></div></div>)}<button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("receitas")}>⬇️ Exportar Receitas CSV</button></div><div style={s.sec}><div style={s.st}>📦 Produtos ({filtP.length})</div>{filtP.slice(0,20).map(p=>{const pu=pEmb(p)?pPreco(p)/pEmb(p):0;return<div key={p.id} style={{borderBottom:`1px solid #FDE8ED`,padding:"6px 0",fontSize:12}}><div style={{display:"flex",justifyContent:"space-between",fontWeight:600}}><span>{p.nome}</span><span style={{color:R}}>{fmt(pPreco(p))}</span></div><div style={{color:G,marginTop:1}}>R$ {fmtN(pu)}/{p.unidade}</div></div>;})}<button style={{...s.bsave,marginTop:12,padding:12,fontSize:13}} onClick={()=>exportarCSV("produtos")}>⬇️ Exportar Produtos CSV</button></div></div></div>)}
+      {viewRel && <RelatoriosPanel recipesCalc={recipesCalc} produtos={produtos} compras={compras} filtP={filtP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} onClose={() => setViewRel(false)} onExportCSV={exportarCSV}/>}
       
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
