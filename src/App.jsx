@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { SEED_RECIPES, CAT_R, CAT_P, UNIDS, EMOJIS, CATEMOJI, FORMAS_PAG } from "./lib/constants";
 import { fmt, fmtN, genId } from "./utils/formatters";
 import { pPreco, pEmb } from "./utils/helpers";
@@ -10,72 +10,17 @@ import { buscarOuCriarNegocio, carregarDadosNegocio, salvarConfig } from "./serv
 import { salvarReceitas } from "./services/receitasService";
 import { listarProdutos, salvarProduto, desativarProduto, inserirProdutoRapido } from "./services/produtosService";
 import { listarCompras, buscarItensCompra, salvarCompra, excluirCompra } from "./services/comprasService";
+import NavItem from "./components/ui/NavItem";
+import ModalConfirm from "./components/ui/ModalConfirm";
+import ResponsiveDrawer from "./components/ui/ResponsiveDrawer";
+import MiniBarChart from "./components/ui/MiniBarChart";
+import StatCard from "./components/ui/StatCard";
 
 
 // ─── NAV ITEM ──────────────────────────────────────────────────
-function NavItem({ icon, label, active, collapsed, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      title={collapsed ? label : undefined}
-      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-        active
-          ? "bg-gray-100 dark:bg-[#1F1F23] text-gray-900 dark:text-white"
-          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1F1F23] hover:text-gray-900 dark:hover:text-gray-200"
-      }`}
-    >
-      <span className="shrink-0 flex items-center">{icon}</span>
-      {!collapsed && <span className="truncate">{label}</span>}
-    </button>
-  );
-}
-
 // ═══════════════════════════════════════════════════════════════
 // COMPONENTES ISOLADOS (MODAIS E FORMS)
 // ═══════════════════════════════════════════════════════════════
-
-const ModalConfirm = memo(function ModalConfirm({ item, onConfirm, onCancel }) {
-  if (!item) return null;
-  return (
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 24px"}}>
-      <div style={{background:"#fff",borderRadius:12,padding:24,width:"100%",maxWidth:360,textAlign:"center",border:"1px solid #E5E7EB"}}>
-        <div style={{width:44,height:44,borderRadius:"50%",background:"#FEF2F2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
-          <svg width="20" height="20" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        </div>
-        <div style={{fontFamily:"'Inter',sans-serif",fontSize:16,color:"#111827",marginBottom:6,fontWeight:600}}>Confirmar exclusão</div>
-        <div style={{fontSize:13,color:"#6B7280",marginBottom:20,lineHeight:1.6}}>Excluir <b style={{color:"#374151"}}>"{item.nome}"</b>?<br/><span style={{fontSize:12,color:"#DC2626"}}>Esta ação não pode ser desfeita.</span></div>
-        <div style={{display:"flex",gap:10}}>
-          <button style={{flex:1,padding:13,borderRadius:8,border:"1.5px solid #E5E7EB",background:"#fff",color:"#374151",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}} onClick={onCancel}>Cancelar</button>
-          <button style={{flex:1,padding:13,borderRadius:8,border:"none",background:"#DC2626",color:"#fff",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter',sans-serif"}} onClick={onConfirm}>Sim, excluir</button>
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// ─── RESPONSIVE DRAWER WRAPPER ────────────────────────────────
-function ResponsiveDrawer({ title, onClose, children }) {
-  return (
-    <div className="drawer-overlay" onClick={onClose}>
-      <div className="drawer-container" onClick={e => e.stopPropagation()}>
-        <div className="drawer-header">
-          <h2>{title}</h2>
-          <button
-            onClick={onClose}
-            style={{background:"none",border:"none",cursor:"pointer",padding:8,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:6,color:"#6B7280"}}
-          >
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div className="drawer-body">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── QUICK PRODUCT MODAL ──────────────────────────────────────
 function QuickProdModal({ open, onClose, negocioId, onProductSaved, toast_ }) {
@@ -382,47 +327,6 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
 }
 
 // ─── MINI BAR CHART (SVG puro — sem dependência) ─────────────
-function MiniBarChart({ data, color = "#6366f1", height = 110 }) {
-  if (!data || data.length === 0) return <div style={{textAlign:"center",padding:20,color:"#6B7280",fontSize:12}}>Sem dados</div>;
-  const max = Math.max(...data.map(d => d.value), 1);
-  const barW = Math.max(24, Math.floor(260 / data.length));
-  const gap = 4;
-  const totalW = data.length * (barW + gap);
-  return (
-    <div style={{overflowX:"auto",scrollbarWidth:"none"}}>
-      <svg width={totalW} height={height + 24} style={{display:"block"}}>
-        {data.map((d, i) => {
-          const h = (d.value / max) * height;
-          const x = i * (barW + gap);
-          return (
-            <g key={i}>
-              <rect x={x} y={height - h} width={barW} height={h} rx={4} fill={color} opacity={0.85} />
-              <text x={x + barW / 2} y={height - h - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="#374151">{d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value > 0 ? d.value : ""}</text>
-              <text x={x + barW / 2} y={height + 14} textAnchor="middle" fontSize={9} fill="#6B7280">{d.label}</text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
-}
-
-// ─── STAT CARD ────────────────────────────────────────────────
-function StatCard({ icon, label, value, sub, iconBg = "#f3f4f6", iconColor = "#6b7280" }) {
-  return (
-    <div className="bg-white dark:bg-[#0F0F12] rounded-xl p-5 border border-gray-200 dark:border-[#1F1F23] hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div style={{width:36,height:36,borderRadius:8,background:iconBg,display:"flex",alignItems:"center",justifyContent:"center",color:iconColor,flexShrink:0}}>
-          {icon}
-        </div>
-      </div>
-      <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{value}</div>
-      <div className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</div>
-      {sub && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{sub}</div>}
-    </div>
-  );
-}
-
 // ─── DASHBOARD HOME ───────────────────────────────────────────
 function DashboardHome({ recipesCalc, produtos, compras, fmt, fmtN, pPreco, pEmb }) {
   const totalReceitas = recipesCalc.length;
