@@ -1,22 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { createClient } from "@supabase/supabase-js";
 import { SEED_RECIPES, CAT_R, CAT_P, UNIDS, EMOJIS, CATEMOJI, FORMAS_PAG } from "./lib/constants";
 import { fmt, fmtN, genId } from "./utils/formatters";
 import { pPreco, pEmb } from "./utils/helpers";
 import { calc, calcCustosFixos } from "./utils/calc";
 import s from "./styles/formStyles";
 import GLOBAL_CSS from "./styles/globalCss";
-
-// ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
-const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
-const SUPA_ANON = import.meta.env.VITE_SUPA_ANON;
-const supabase  = createClient(SUPA_URL, SUPA_ANON, {
-  auth: {
-    persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
-    storage: window.localStorage, storageKey: "delicias-jay-auth",
-    lock: async (_n, _t, fn) => await fn(),
-  },
-});
+import { login, cadastrar, logout, onAuthChange } from "./services/authService";
+import { buscarOuCriarNegocio, carregarDadosNegocio, salvarConfig } from "./services/negocioService";
+import { salvarReceitas } from "./services/receitasService";
+import { listarProdutos, salvarProduto, desativarProduto, inserirProdutoRapido } from "./services/produtosService";
+import { listarCompras, buscarItensCompra, salvarCompra, excluirCompra } from "./services/comprasService";
 
 
 // ─── NAV ITEM ──────────────────────────────────────────────────
@@ -95,14 +88,14 @@ function QuickProdModal({ open, onClose, negocioId, onProductSaved, toast_ }) {
     if (!f.nome.trim()||!f.preco_ultimo||!f.embalagem_qtd) { toast_("⚠️ Preencha todos os campos"); return; }
     setSaving(true);
     try {
-      await supabase.from("produtos_v2").insert({ negocio_id: negocioId, nome: f.nome.trim(), categoria: f.categoria, unidade: f.unidade, tipo: "ambos", preco_ultimo: parseFloat(f.preco_ultimo)||0, embalagem_qtd: parseFloat(f.embalagem_qtd)||1 });
+      await inserirProdutoRapido(negocioId, f);
       await onProductSaved(); onClose(); toast_("✅ Produto cadastrado!");
     } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); }
     setSaving(false);
   };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:500,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div style={{background:W,borderRadius:"18px 18px 0 0",padding:18,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+      <div style={{background:"#ffffff",borderRadius:"18px 18px 0 0",padding:18,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <div style={{fontFamily:"'Inter',sans-serif",fontSize:15,fontWeight:600,marginBottom:12,color:"#111827"}}>Novo Produto Rápido</div>
         <label style={s.lbl}>Nome *</label><input style={s.inp} placeholder="Ex: Chocolate 70%" value={f.nome} onChange={e=>setF(p=>({...p,nome:e.target.value}))} autoFocus/>
         <label style={s.lbl}>Categoria</label><select style={s.inp} value={f.categoria} onChange={e=>setF(p=>({...p,categoria:e.target.value}))}>{CAT_P.map(c=><option key={c}>{c}</option>)}</select>
@@ -834,42 +827,26 @@ export default function App() {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  async function setupNegocio(userId, userMeta) {
-    const { data: membro, error: errM } = await supabase.from("membros").select("negocio_id").eq("user_id", userId).maybeSingle();
-    if (errM) throw new Error(errM.message);
-    if (membro?.negocio_id) { const { data: neg } = await supabase.from("negocios").select("nome").eq("id", membro.negocio_id).maybeSingle(); return { nId: membro.negocio_id, nNome: neg?.nome || "Meu Negócio" }; }
-    const nomeNeg = userMeta?.nome_negocio || "Meu Negócio";
-    const { data: neg, error: errN } = await supabase.from("negocios").insert({ nome: nomeNeg }).select("id").single();
-    if (errN) throw new Error(errN.message);
-    await supabase.from("membros").insert({ negocio_id: neg.id, user_id: userId, papel: "dono" });
-    return { nId: neg.id, nNome: nomeNeg };
-  }
-
   async function loadUserData(sessionUser) {
     setLoading(true);
     const timeout = setTimeout(() => { setLoading(false); setAppReady(true); }, 12000);
     try {
-      const { nId, nNome } = await setupNegocio(sessionUser.id, sessionUser.user_metadata);
+      const nomeNeg = sessionUser.user_metadata?.nome_negocio || "Meu Negócio";
+      const { nId, nNome } = await buscarOuCriarNegocio(sessionUser.id, nomeNeg);
       setNegocioId(nId); setNegocioNome(nNome);
-      const [rRes, pRes, cRes, mRes, cfgRes] = await Promise.all([
-        supabase.from("receitas").select("id, dados").eq("negocio_id", nId).maybeSingle(),
-        supabase.from("produtos_v2").select("*").eq("negocio_id", nId).eq("ativo", true).order("nome"),
-        supabase.from("vw_compras_listagem").select("*").eq("negocio_id", nId).order("data_compra", { ascending: false }).limit(100),
-        supabase.from("membros").select("user_id").eq("negocio_id", nId),
-        supabase.from("config_negocio").select("*").eq("negocio_id", nId).maybeSingle(),
-      ]);
-      if (rRes.data?.id) { setReceitasRowId(rRes.data.id); setRecipes(rRes.data.dados || []); } else setRecipes(SEED_RECIPES);
-      if (pRes.data) setProdutos(pRes.data.map(p => ({ ...p, preco: p.preco_ultimo, embalagemQtd: p.embalagem_qtd })));
-      if (cRes.data) setCompras(cRes.data);
-      if (mRes.data) { const map = {}; mRes.data.forEach(m => { map[m.user_id] = m.user_id === sessionUser.id ? (sessionUser.email?.split("@")[0] || "Eu") : "Membro"; }); setMapaUsuarios(map); }
-      if (cfgRes.data) setConfig(cfgRes.data);
+      const { receitasRow, produtos: prods, compras: comps, membros, config: cfg } = await carregarDadosNegocio(nId);
+      if (receitasRow?.id) { setReceitasRowId(receitasRow.id); setRecipes(receitasRow.dados || []); } else setRecipes(SEED_RECIPES);
+      setProdutos(prods.map(p => ({ ...p, preco: p.preco_ultimo, embalagemQtd: p.embalagem_qtd })));
+      setCompras(comps);
+      const map = {}; membros.forEach(m => { map[m.user_id] = m.user_id === sessionUser.id ? (sessionUser.email?.split("@")[0] || "Eu") : "Membro"; }); setMapaUsuarios(map);
+      if (cfg) setConfig(cfg);
     } catch(e) { console.error(e); setRecipes(SEED_RECIPES); }
     clearTimeout(timeout); setLoading(false); setAppReady(true);
   }
 
   useEffect(() => {
     let loaded = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const subscription = onAuthChange(async (event, session) => {
       if (event === "SIGNED_OUT") { loaded=false; setUser(null); setNegocioId(null); setNegocioNome(""); setRecipes([]); setProdutos([]); setCompras([]); setReceitasRowId(null); setView("list"); setTab("receitas"); setAppReady(true); return; }
       if (event === "TOKEN_REFRESHED" || event === "USER_UPDATED") return;
       if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session?.user) { setUser(session.user); if (!loaded) { loaded = true; await loadUserData(session.user); } else { setAppReady(true); } return; }
@@ -878,18 +855,18 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const saveR = useCallback(async (dados) => { setSaving(true); try { if (receitasRowId) await supabase.from("receitas").update({ dados, atualizado_em: new Date().toISOString() }).eq("id", receitasRowId); else { const { data } = await supabase.from("receitas").insert({ negocio_id: negocioId, dados }).select("id").single(); if (data) setReceitasRowId(data.id); } } catch(e) { console.error(e); } setSaving(false); }, [receitasRowId, negocioId]);
-  const reloadProdutos = useCallback(async () => { const { data } = await supabase.from("produtos_v2").select("*").eq("negocio_id", negocioId).eq("ativo", true).order("nome"); if (data) setProdutos(data.map(p => ({ ...p, preco: p.preco_ultimo, embalagemQtd: p.embalagem_qtd }))); }, [negocioId]);
-  const reloadCompras = useCallback(async () => { const { data } = await supabase.from("vw_compras_listagem").select("*").eq("negocio_id", negocioId).order("data_compra", { ascending: false }).limit(100); if (data) setCompras(data); }, [negocioId]);
-  const handleSaveConfig = useCallback(async (payload) => { setSaving(true); try { if (config?.id) { await supabase.from("config_negocio").update(payload).eq("id", config.id); setConfig({ ...config, ...payload }); } else { const { data } = await supabase.from("config_negocio").insert({ negocio_id: negocioId, ...payload }).select("*").single(); if (data) setConfig(data); } toast_("✅ Configuração salva!"); setViewConfig(false); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); }, [config, negocioId, toast_]);
+  const saveR = useCallback(async (dados) => { setSaving(true); try { const newId = await salvarReceitas(negocioId, receitasRowId, dados); if (newId && !receitasRowId) setReceitasRowId(newId); } catch(e) { console.error(e); } setSaving(false); }, [receitasRowId, negocioId]);
+  const reloadProdutos = useCallback(async () => { const prods = await listarProdutos(negocioId); setProdutos(prods); }, [negocioId]);
+  const reloadCompras = useCallback(async () => { const comps = await listarCompras(negocioId); setCompras(comps); }, [negocioId]);
+  const handleSaveConfig = useCallback(async (payload) => { setSaving(true); try { const novoData = await salvarConfig(negocioId, config?.id, payload); if (novoData) setConfig(novoData); else setConfig({ ...config, ...payload }); toast_("✅ Configuração salva!"); setViewConfig(false); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); }, [config, negocioId, toast_]);
 
-  const fazerLogin = async () => { if (!authForm.email || !authForm.senha) { setAuthError("Preencha email e senha"); return; } setAuthLoading(true); setAuthError(""); const { error } = await supabase.auth.signInWithPassword({ email: authForm.email.trim(), password: authForm.senha }); if (error) setAuthError("Email ou senha incorretos ❌"); setAuthLoading(false); };
-  const fazerCadastro = async () => { if (!authForm.nomeNegocio.trim()) { setAuthError("Informe o nome do negócio ⚠️"); return; } if (!authForm.email.trim()) { setAuthError("Informe seu email ⚠️"); return; } if (authForm.senha.length < 6) { setAuthError("Senha: mín. 6 caracteres ⚠️"); return; } setAuthLoading(true); setAuthError(""); const { error } = await supabase.auth.signUp({ email: authForm.email.trim(), password: authForm.senha, options: { data: { nome_negocio: authForm.nomeNegocio.trim() } } }); if (error) setAuthError(error.message); else setAuthView("emailConfirm"); setAuthLoading(false); };
-  const fazerLogout = async () => { try { await supabase.auth.signOut({ scope: "local" }); } catch(e) {} try { Object.keys(localStorage).forEach(k => { if (k.startsWith("sb-") || k.includes("delicias-jay-auth")) localStorage.removeItem(k); }); } catch(e) {} setUser(null); setNegocioId(null); setNegocioNome(""); setRecipes([]); setProdutos([]); setCompras([]); setConfig(null); setReceitasRowId(null); setView("list"); setTab("receitas"); setAuthView("login"); setAuthForm({ email:"", senha:"", nomeNegocio:"" }); };
+  const fazerLogin = async () => { if (!authForm.email || !authForm.senha) { setAuthError("Preencha email e senha"); return; } setAuthLoading(true); setAuthError(""); try { await login(authForm.email, authForm.senha); } catch(e) { setAuthError(e.message + " ❌"); } setAuthLoading(false); };
+  const fazerCadastro = async () => { if (!authForm.nomeNegocio.trim()) { setAuthError("Informe o nome do negócio ⚠️"); return; } if (!authForm.email.trim()) { setAuthError("Informe seu email ⚠️"); return; } if (authForm.senha.length < 6) { setAuthError("Senha: mín. 6 caracteres ⚠️"); return; } setAuthLoading(true); setAuthError(""); try { await cadastrar(authForm.email, authForm.senha, authForm.nomeNegocio); setAuthView("emailConfirm"); } catch(e) { setAuthError(e.message); } setAuthLoading(false); };
+  const fazerLogout = async () => { await logout(); setUser(null); setNegocioId(null); setNegocioNome(""); setRecipes([]); setProdutos([]); setCompras([]); setConfig(null); setReceitasRowId(null); setView("list"); setTab("receitas"); setAuthView("login"); setAuthForm({ email:"", senha:"", nomeNegocio:"" }); };
 
   const openNewP = () => { setPFormInit({ nome:"", preco_ultimo:"", embalagem_qtd:"", unidade:"g", categoria:"Secos", tipo:"ambos", id: genId() }); setEditPId(null); setView("pForm"); };
   const openEditP = id => { const p = produtos.find(x => x.id === id); if (p) setPFormInit(p); setEditPId(id); setView("pForm"); };
-  const handleSaveProd = async (data) => { setSaving(true); const payload = { nome: data.nome.trim(), categoria: data.categoria, unidade: data.unidade, tipo: data.tipo||"ambos", preco_ultimo: data.preco_ultimo, embalagem_qtd: data.embalagem_qtd }; try { if (editPId) await supabase.from("produtos_v2").update(payload).eq("id", editPId); else { payload.negocio_id = negocioId; await supabase.from("produtos_v2").insert(payload); } await reloadProdutos(); toast_("✅ Produto salvo!"); setView("list"); setTab("produtos"); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); };
+  const handleSaveProd = async (data) => { setSaving(true); const payload = { nome: data.nome.trim(), categoria: data.categoria, unidade: data.unidade, tipo: data.tipo||"ambos", preco_ultimo: data.preco_ultimo, embalagem_qtd: data.embalagem_qtd }; try { await salvarProduto(negocioId, editPId, payload); await reloadProdutos(); toast_("✅ Produto salvo!"); setView("list"); setTab("produtos"); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); };
   const pedirExcP = id => { if (recipes.some(r => r.ingredientes.some(i => i.produtoId === id))) { toast_("⚠️ Produto usado em receitas"); return; } setConfirmDel({ tipo:"produto", id, nome: produtos.find(x=>x.id===id)?.nome||"" }); };
   const copiarProduto = id => { const p = produtos.find(x => x.id === id); setPFormInit({ ...p, nome: `Cópia de ${p.nome}`, id: genId() }); setEditPId(null); setView("pForm"); toast_("📋 Revise e salve!"); };
 
@@ -901,11 +878,11 @@ export default function App() {
   const copiarReceita = id => { const r = recipes.find(x => x.id === id); setRFormInit({ ...JSON.parse(JSON.stringify(r)), id: genId(), nome: `Cópia de ${r.nome}` }); setEditId(null); setView("rForm"); toast_("📋 Revise e salve!"); };
 
   const openNewC = () => setView("cForm");
-  const openDetC = async (id) => { const { data: itens } = await supabase.from("compra_itens").select("*").eq("compra_id", id).order("created_at"); setCompraItens(prev => ({ ...prev, [id]: itens || [] })); setCompraDetalhe(id); setView("cDetail"); };
-  const handleSaveCompra = async (header, validItens) => { setSaving(true); try { const { data: newC, error } = await supabase.from("compras").insert({ negocio_id: negocioId, data_compra: header.data_compra, num_doc: header.num_doc || null, fornecedor: header.fornecedor || null, forma_pagamento: header.forma_pagamento || null, obs: header.obs || null, created_by: user.id }).select("id").single(); if (error) throw error; await supabase.from("compra_itens").insert(validItens.map(i => ({ compra_id: newC.id, produto_id: i.produto_id, qtd: parseFloat(i.qtd)||0, unidade: i.unidade||"un", valor_unitario: parseFloat(i.valor_unitario)||0 }))); await Promise.all([reloadCompras(), reloadProdutos()]); toast_("✅ Compra salva!"); setView("list"); setTab("compras"); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); };
+  const openDetC = async (id) => { const itens = await buscarItensCompra(id); setCompraItens(prev => ({ ...prev, [id]: itens })); setCompraDetalhe(id); setView("cDetail"); };
+  const handleSaveCompra = async (header, validItens) => { setSaving(true); try { await salvarCompra(negocioId, user.id, header, validItens); await Promise.all([reloadCompras(), reloadProdutos()]); toast_("✅ Compra salva!"); setView("list"); setTab("compras"); } catch(e) { console.error(e); toast_("❌ Erro ao salvar"); } setSaving(false); };
   const pedirExcC = id => setConfirmDel({ tipo:"compra", id, nome: `Compra ${compras.find(x=>x.id===id)?.data_compra||""}` });
 
-  const confirmarExc = async () => { if (!confirmDel) return; setSaving(true); if (confirmDel.tipo === "receita") { const up = recipes.filter(r => r.id !== confirmDel.id); setRecipes(up); await saveR(up); toast_("🗑 Receita excluída"); setView("list"); setTab("receitas"); } else if (confirmDel.tipo === "produto") { await supabase.from("produtos_v2").update({ ativo: false }).eq("id", confirmDel.id); await reloadProdutos(); toast_("🗑 Produto desativado"); } else if (confirmDel.tipo === "compra") { await supabase.from("compras").delete().eq("id", confirmDel.id); await reloadCompras(); toast_("🗑 Compra excluída"); setView("list"); setTab("compras"); } setConfirmDel(null); setSaving(false); };
+  const confirmarExc = async () => { if (!confirmDel) return; setSaving(true); if (confirmDel.tipo === "receita") { const up = recipes.filter(r => r.id !== confirmDel.id); setRecipes(up); await saveR(up); toast_("🗑 Receita excluída"); setView("list"); setTab("receitas"); } else if (confirmDel.tipo === "produto") { await desativarProduto(confirmDel.id); await reloadProdutos(); toast_("🗑 Produto desativado"); } else if (confirmDel.tipo === "compra") { await excluirCompra(confirmDel.id); await reloadCompras(); toast_("🗑 Compra excluída"); setView("list"); setTab("compras"); } setConfirmDel(null); setSaving(false); };
 
   const exportarCSV = (tipo) => { let csv="",nome=""; if (tipo==="receitas"){nome="receitas.csv";csv="Nome;Categoria;Rendimento;Margem%;Taxa%;Custo Total;Custo/Un;Preço Sugerido;Preço App;Lucro Lote\n";recipesCalc.forEach(r=>{const c=r._calc;csv+=`"${r.nome}";"${r.categoria||""}";"${r.rendimento}";"${r.margem}";"${r.taxaDelivery}";"${fmtN(c.total)}";"${fmtN(c.porUn)}";"${fmtN(c.final)}";"${fmtN(r.precoApp)}";"${fmtN(c.lucro)}"\n`;});}else{nome="produtos.csv";csv="Código;Nome;Categoria;Unidade;Preço;Embalagem;Custo/Un\n";filtP.forEach(p=>{const pu=pEmb(p)?pPreco(p)/pEmb(p):0;csv+=`"${p.codigo||""}";"${p.nome}";"${p.categoria}";"${p.unidade}";"${fmtN(pPreco(p))}";"${pEmb(p)}";"${fmtN(pu)}"\n`;});} const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=nome;a.click();URL.revokeObjectURL(url);toast_("📊 CSV exportado!"); };
 
