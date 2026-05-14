@@ -2,7 +2,7 @@
 import { SEED_RECIPES, CAT_R, CAT_P, CATEMOJI } from "./lib/constants";
 import { fmt, fmtN, genId } from "./utils/formatters";
 import { pPreco, pEmb } from "./utils/helpers";
-import { calc, calcCustosFixos } from "./utils/calc";
+import { calc } from "./utils/calc";
 import s from "./styles/formStyles";
 import GLOBAL_CSS from "./styles/globalCss";
 import { login, cadastrar, logout, onAuthChange } from "./services/authService";
@@ -13,8 +13,6 @@ import { listarCompras, buscarItensCompra, salvarCompra, excluirCompra } from ".
 import NavItem from "./components/ui/NavItem";
 import ModalConfirm from "./components/ui/ModalConfirm";
 import ResponsiveDrawer from "./components/ui/ResponsiveDrawer";
-import MiniBarChart from "./components/ui/MiniBarChart";
-import StatCard from "./components/ui/StatCard";
 import QuickProdModal from "./components/forms/QuickProdModal";
 import ConfigForm from "./components/forms/ConfigForm";
 import ProdutoForm from "./components/forms/ProdutoForm";
@@ -22,7 +20,10 @@ import ReceitaForm from "./components/forms/ReceitaForm";
 import CompraForm from "./components/forms/CompraForm";
 import DashboardHome from "./components/DashboardHome";
 import RelatoriosPanel from "./components/RelatoriosPanel";
-import DesktopDetail from "./components/DesktopDetail";
+import { LoadingScreen, DataLoadingScreen, EmailConfirmScreen, CadastroScreen, LoginScreen } from "./pages/AuthScreens";
+import ReceitasPage from "./pages/ReceitasPage";
+import ProdutosPage from "./pages/ProdutosPage";
+import ComprasPage from "./pages/ComprasPage";
 
 
 // ─── PAINÉIS MOVIDOS PARA src/components/ ─────────────────────
@@ -124,80 +125,11 @@ export default function App() {
   const mesesCompras = useMemo(() => { const set = new Set(compras.map(c => c.data_compra?.substring(0,7))); return Array.from(set).sort().reverse(); }, [compras]);
   const filtC = useMemo(() => compras.filter(c => mesFiltroC === "Todos" || c.data_compra?.startsWith(mesFiltroC)).filter(c => !searchC || (c.fornecedor||"").toLowerCase().includes(searchC.toLowerCase())), [compras, mesFiltroC, searchC]);
 
-  // ── AUTH SCREENS (layout clean) ──
-  const authInp = (err) => ({ width:"100%", padding:"10px 14px", borderRadius:8, border:`1.5px solid ${err?"#f87171":"#e5e7eb"}`, background:"#fff", fontSize:14, color:"#111827", outline:"none", boxSizing:"border-box", marginBottom:12, fontFamily:"'DM Sans',sans-serif", transition:"border-color .15s" });
-  const authCard = { background:"#fff", borderRadius:16, padding:"40px 36px", width:"100%", maxWidth:380, boxShadow:"0 4px 24px rgba(0,0,0,.08)", border:"1px solid #f3f4f6" };
-
-  if (!appReady) return (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-      <div className="text-center">
-        <div className="text-5xl mb-3">🍰</div>
-        <div className="text-gray-500 text-sm">Carregando...</div>
-        <div style={{width:24,height:24,border:"2px solid #e5e7eb",borderTop:"2px solid #c8566b",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"16px auto 0"}}></div>
-      </div>
-    </div>
-  );
-
-  if (!user && authView === "emailConfirm") return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div style={authCard} className="text-center">
-        <div className="text-5xl mb-4">📧</div>
-        <div className="text-xl font-semibold text-gray-800 mb-2">Verifique seu email</div>
-        <div className="text-sm text-gray-500 leading-relaxed mb-6">Enviamos um link para<br/><span className="font-medium text-gray-700">{authForm.email}</span><br/><br/>Confirme e volte para entrar.</div>
-        <button className="text-sm text-gray-400 hover:text-gray-600 transition-colors" onClick={() => setAuthView("login")}>← Voltar para o login</button>
-      </div>
-    </div>
-  );
-
-  if (!user && authView === "cadastro") return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div style={authCard}>
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-3">🍰</div>
-          <div className="text-xl font-semibold text-gray-800">Criar conta</div>
-          <div className="text-xs text-gray-400 mt-1">Novo negócio</div>
-        </div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Nome do negócio</label>
-        <input style={authInp(!!authError)} type="text" placeholder="Ex: Confeitaria da Jay" value={authForm.nomeNegocio} onChange={e=>{setAuthForm({...authForm,nomeNegocio:e.target.value});setAuthError("");}}/>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
-        <input style={authInp(!!authError)} type="email" placeholder="seu@email.com" value={authForm.email} onChange={e=>{setAuthForm({...authForm,email:e.target.value});setAuthError("");}}/>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Senha</label>
-        <input style={authInp(!!authError)} type="password" placeholder="Mínimo 6 caracteres" value={authForm.senha} onChange={e=>{setAuthForm({...authForm,senha:e.target.value});setAuthError("");}} onKeyDown={e=>e.key==="Enter"&&fazerCadastro()}/>
-        {authError && <div className="text-red-400 text-xs mb-3">{authError}</div>}
-        <button className="w-full py-2.5 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-semibold transition-colors mb-4" onClick={fazerCadastro} disabled={authLoading}>{authLoading?"Criando conta...":"Criar conta"}</button>
-        <div className="text-center"><button className="text-sm text-gray-400 hover:text-gray-600 transition-colors" onClick={()=>{setAuthView("login");setAuthError("");}}>Já tenho conta → Entrar</button></div>
-      </div>
-    </div>
-  );
-
-  if (!user) return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div style={authCard}>
-        <div className="text-center mb-8">
-          <div className="text-4xl mb-3">🍰</div>
-          <div className="text-xl font-semibold text-gray-800">Delícias da Jay</div>
-          <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Gestão</div>
-        </div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
-        <input style={authInp(!!authError)} type="email" placeholder="seu@email.com" value={authForm.email} onChange={e=>{setAuthForm({...authForm,email:e.target.value});setAuthError("");}}/>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Senha</label>
-        <input style={{...authInp(!!authError), animation:authError?"shake .3s":""}} type="password" placeholder="••••••••" value={authForm.senha} onChange={e=>{setAuthForm({...authForm,senha:e.target.value});setAuthError("");}} onKeyDown={e=>e.key==="Enter"&&fazerLogin()}/>
-        {authError && <div className="text-red-400 text-xs mb-3">{authError}</div>}
-        <button className="w-full py-2.5 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-semibold transition-colors mb-4" onClick={fazerLogin} disabled={authLoading}>{authLoading?"Entrando...":"Entrar"}</button>
-        <div className="text-center"><button className="text-sm text-gray-400 hover:text-gray-600 transition-colors" onClick={()=>{setAuthView("cadastro");setAuthError("");setAuthForm({email:"",senha:"",nomeNegocio:""});}}>Criar novo negócio →</button></div>
-      </div>
-    </div>
-  );
-
-  if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-gray-50">
-      <div className="text-center">
-        <div className="text-5xl mb-3">🍰</div>
-        <div className="text-gray-500 text-sm">{negocioNome||"Carregando..."}</div>
-        <div style={{width:24,height:24,border:"2px solid #e5e7eb",borderTop:"2px solid #c8566b",borderRadius:"50%",animation:"spin 1s linear infinite",margin:"16px auto 0"}}></div>
-      </div>
-    </div>
-  );
+  if (!appReady) return <LoadingScreen/>;
+  if (!user && authView === "emailConfirm") return <EmailConfirmScreen email={authForm.email} onBack={() => setAuthView("login")}/>;
+  if (!user && authView === "cadastro") return <CadastroScreen authForm={authForm} authError={authError} authLoading={authLoading} setAuthForm={setAuthForm} setAuthError={setAuthError} setAuthView={setAuthView} fazerCadastro={fazerCadastro}/>;
+  if (!user) return <LoginScreen authForm={authForm} authError={authError} authLoading={authLoading} setAuthForm={setAuthForm} setAuthError={setAuthError} setAuthView={setAuthView} fazerLogin={fazerLogin}/>;
+  if (loading) return <DataLoadingScreen negocioNome={negocioNome}/>;
 
   // ══════════════════════════════════════════════════════════════
   // NOVO LAYOUT — SIDEBAR + HEADER + CONTEÚDO
@@ -297,165 +229,14 @@ export default function App() {
             <DashboardHome recipesCalc={recipesCalc} produtos={produtos} compras={compras} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb}/>
           )}
 
-          {/* Receitas: lista + detalhe lado a lado */}
-          {tab === "receitas" && (
-            <div className="flex h-full">
-              <div className="w-72 shrink-0 bg-white dark:bg-[#0F0F12] border-r border-gray-200 dark:border-[#1F1F23] flex flex-col overflow-hidden">
-                <div className="p-3 border-b border-gray-200 dark:border-[#1F1F23] space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-                    <input className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1F1F23] text-sm text-gray-700 dark:text-gray-200 outline-none" placeholder="Buscar receita..." value={searchR} onChange={e=>setSearchR(e.target.value)}/>
-                  </div>
-                  <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none"}}>
-                    {["Todos",...CAT_R].map(c=><button key={c} onClick={()=>setCatR(c)} className={`shrink-0 px-2.5 py-0.5 rounded-full border text-xs font-semibold transition-colors ${catR===c?"bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900":"border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 hover:border-gray-400"}`}>{c}</button>)}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {filtR.length === 0
-                    ? <div className="text-center py-10 text-gray-400 text-sm">{recipes.length === 0 ? "Nenhuma receita" : "Nada encontrado"}</div>
-                    : filtR.map(r=>(
-                      <div key={r.id} onClick={()=>openDet(r.id)} className={`flex items-center gap-2.5 p-2.5 rounded-lg mb-1 cursor-pointer transition-all border ${detailId===r.id&&view==="detail"?"bg-gray-100 dark:bg-[#1F1F23] border-gray-300 dark:border-gray-600":"border-transparent hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
-                        <span className="text-xl shrink-0">{r.emoji}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{r.nome}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">{r.categoria||"Sem categoria"}</div>
-                        </div>
-                        <div className="font-semibold text-sm text-gray-900 dark:text-white shrink-0">{fmt(r._calc.final)}</div>
-                      </div>
-                    ))
-                  }
-                </div>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {view==="detail" && (()=>{ const r=recipesCalc.find(x=>x.id===detailId); if(!r) return null; return <DesktopDetail r={r} produtos={produtos} onEdit={()=>openEditR(r.id)} onCopy={()=>copiarReceita(r.id)} onDelete={()=>pedirExcR(r.id)}/>; })()}
-                {view!=="detail" && (
-                  <div className="flex-1 flex items-center justify-center h-full flex-col gap-3 text-gray-400">
-                    <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="text-gray-300"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
-                    <div className="text-sm font-medium text-gray-500">Selecione uma receita para ver detalhes</div>
-                    <div className="text-xs text-gray-400">ou clique em "+ Receita" para adicionar</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Receitas */}
+          {tab === "receitas" && <ReceitasPage filtR={filtR} recipes={recipes} detailId={detailId} view={view} searchR={searchR} catR={catR} setSearchR={setSearchR} setCatR={setCatR} openDet={openDet} fmt={fmt} recipesCalc={recipesCalc} produtos={produtos} openEditR={openEditR} copiarReceita={copiarReceita} pedirExcR={pedirExcR} CAT_R={CAT_R}/>}
 
-          {/* Produtos: lista + placeholder */}
-          {tab === "produtos" && (
-            <div className="flex h-full">
-              <div className="w-72 shrink-0 bg-white dark:bg-[#0F0F12] border-r border-gray-200 dark:border-[#1F1F23] flex flex-col overflow-hidden">
-                <div className="p-3 border-b border-gray-200 dark:border-[#1F1F23] space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-                    <input className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1F1F23] text-sm text-gray-700 dark:text-gray-200 outline-none" placeholder="Buscar produto..." value={searchP} onChange={e=>setSearchP(e.target.value)}/>
-                  </div>
-                  <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none"}}>
-                    {["Todos",...CAT_P].map(c=><button key={c} onClick={()=>setCatP(c)} className={`shrink-0 px-2.5 py-0.5 rounded-full border text-xs font-semibold transition-colors ${catP===c?"bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900":"border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 hover:border-gray-400"}`}>{c}</button>)}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {filtP.length === 0
-                    ? <div className="text-center py-10 text-gray-400 text-sm">Nenhum produto</div>
-                    : filtP.map(p=>{ const pu=pEmb(p)?pPreco(p)/pEmb(p):0; return (
-                      <div key={p.id} onClick={()=>openEditP(p.id)} className={`flex items-center gap-2.5 p-2.5 rounded-lg mb-1 cursor-pointer transition-all border ${editPId===p.id&&view==="pForm"?"bg-gray-100 dark:bg-[#1F1F23] border-gray-300 dark:border-gray-600":"border-transparent hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
-                        <span className="text-lg shrink-0">{CATEMOJI[p.categoria]||"📦"}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{p.nome}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">{p.categoria} · R$ {fmtN(pu)}/{p.unidade}</div>
-                        </div>
-                        <div className="font-semibold text-sm text-gray-900 dark:text-white shrink-0">{fmt(pPreco(p))}</div>
-                      </div>
-                    );})
-                  }
-                </div>
-              </div>
-              <div className="flex-1 flex items-center justify-center text-gray-400 flex-col gap-3 h-full">
-                <svg width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="text-gray-300"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Selecione um produto para editar</div>
-                <div className="text-xs text-gray-400">ou clique em "+ Produto" para adicionar</div>
-              </div>
-            </div>
-          )}
+          {/* Produtos */}
+          {tab === "produtos" && <ProdutosPage filtP={filtP} editPId={editPId} view={view} searchP={searchP} catP={catP} setSearchP={setSearchP} setCatP={setCatP} openEditP={openEditP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} CATEMOJI={CATEMOJI} CAT_P={CAT_P}/>}
 
-          {/* Compras: lista + detalhe */}
-          {tab === "compras" && (
-            <div className="flex h-full">
-              <div className="w-72 shrink-0 bg-white dark:bg-[#0F0F12] border-r border-gray-200 dark:border-[#1F1F23] flex flex-col overflow-hidden">
-                <div className="p-3 border-b border-gray-200 dark:border-[#1F1F23] space-y-2">
-                  <div className="relative">
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
-                    <input className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#1F1F23] bg-white dark:bg-[#1F1F23] text-sm text-gray-700 dark:text-gray-200 outline-none" placeholder="Buscar fornecedor..." value={searchC} onChange={e=>setSearchC(e.target.value)}/>
-                  </div>
-                  <div className="flex gap-1.5 overflow-x-auto" style={{scrollbarWidth:"none"}}>
-                    <button onClick={()=>setMesFiltroC("Todos")} className={`shrink-0 px-2.5 py-0.5 rounded-full border text-xs font-semibold transition-colors ${mesFiltroC==="Todos"?"bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900":"border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 hover:border-gray-400"}`}>Todos</button>
-                    {mesesCompras.map(m=>{ const[a,me]=m.split("-"); return <button key={m} onClick={()=>setMesFiltroC(m)} className={`shrink-0 px-2.5 py-0.5 rounded-full border text-xs font-semibold transition-colors ${mesFiltroC===m?"bg-gray-900 border-gray-900 text-white dark:bg-white dark:border-white dark:text-gray-900":"border-gray-200 dark:border-[#1F1F23] text-gray-500 dark:text-gray-400 hover:border-gray-400"}`}>{["","Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][parseInt(me)]}/{a.slice(2)}</button>; })}
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto p-2">
-                  {filtC.length === 0
-                    ? <div className="text-center py-10 text-gray-400 text-sm">{compras.length === 0 ? "Nenhuma compra" : "Nada encontrado"}</div>
-                    : filtC.map(c=>(
-                      <div key={c.id} onClick={()=>openDetC(c.id)} className={`flex items-center gap-2.5 p-2.5 rounded-lg mb-1 cursor-pointer transition-all border ${compraDetalhe===c.id&&view==="cDetail"?"bg-gray-100 dark:bg-[#1F1F23] border-gray-300 dark:border-gray-600":"border-transparent hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
-                        <span className="text-lg shrink-0">🛒</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{c.fornecedor||"Sem fornecedor"}</div>
-                          <div className="text-xs text-gray-400 mt-0.5">{new Date(c.data_compra+"T12:00:00").toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}</div>
-                        </div>
-                        <div className="font-semibold text-sm text-gray-900 dark:text-white shrink-0">{fmt(c.valor_total)}</div>
-                      </div>
-                    ))
-                  }
-                </div>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {view==="cDetail" && compraDetalhe && (()=>{
-                  const c=compras.find(x=>x.id===compraDetalhe); if(!c) return null;
-                  const it=compraItens[compraDetalhe]||[];
-                  const tot=it.reduce((sum,i)=>sum+parseFloat(i.valor_subtotal||0),0);
-                  return (
-                    <div className="p-7" style={{animation:"fadein .2s ease"}}>
-                      <div className="mb-6">
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{c.fornecedor||"Compra"}</h1>
-                        <div className="text-xs text-gray-400 mt-1">{new Date(c.data_compra+"T12:00:00").toLocaleDateString("pt-BR")} · {c.forma_pagamento||""} · {mapaUsuarios[c.created_by]||""}</div>
-                      </div>
-                      <div className="bg-white dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#1F1F23] overflow-hidden mb-4">
-                        <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1F1F23]">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Itens ({it.length})</h3>
-                        </div>
-                        <div className="divide-y divide-gray-100 dark:divide-[#1F1F23]">
-                          {it.map((i,idx)=>(
-                            <div key={idx} className="flex items-center justify-between px-5 py-3">
-                              <div>
-                                <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{i.produto_nome_snapshot}</div>
-                                <div className="text-xs text-gray-400 mt-0.5">{i.qtd} {i.unidade} × {fmt(i.valor_unitario)}</div>
-                              </div>
-                              <div className="text-sm font-semibold text-gray-900 dark:text-white">{fmt(i.valor_subtotal)}</div>
-                            </div>
-                          ))}
-                          <div className="flex items-center justify-between px-5 py-3 bg-gray-50 dark:bg-[#1F1F23]">
-                            <div className="text-sm font-bold text-gray-900 dark:text-white">Total</div>
-                            <div className="text-sm font-bold text-gray-900 dark:text-white">{fmt(tot)}</div>
-                          </div>
-                        </div>
-                      </div>
-                      {c.obs && (
-                        <div className="bg-white dark:bg-[#0F0F12] rounded-xl border border-gray-200 dark:border-[#1F1F23] p-5 mb-4">
-                          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Observações</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{c.obs}</p>
-                        </div>
-                      )}
-                      <button className="px-4 py-2 rounded-lg border border-red-200 dark:border-red-900/30 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" onClick={()=>pedirExcC(c.id)}>Excluir compra</button>
-                    </div>
-                  );
-                })()}
-                {(view!=="cDetail"||!compraDetalhe) && (
-                  <div className="flex h-full items-center justify-center flex-col gap-3 text-gray-400">
-                    <div className="text-5xl">🛒</div>
-                    <div className="text-sm font-medium text-gray-500 dark:text-gray-400">Selecione uma compra para ver detalhes</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Compras */}
+          {tab === "compras" && <ComprasPage filtC={filtC} compras={compras} compraDetalhe={compraDetalhe} view={view} searchC={searchC} mesFiltroC={mesFiltroC} setSearchC={setSearchC} setMesFiltroC={setMesFiltroC} mesesCompras={mesesCompras} compraItens={compraItens} mapaUsuarios={mapaUsuarios} openDetC={openDetC} fmt={fmt} pedirExcC={pedirExcC}/>}
 
           {/* Relatórios */}
           {tab === "relatorios" && (
