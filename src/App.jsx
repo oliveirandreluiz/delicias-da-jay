@@ -5,12 +5,12 @@ import { pPreco, pEmb } from "./utils/helpers";
 import { calc } from "./utils/calc";
 import s from "./styles/formStyles";
 import GLOBAL_CSS from "./styles/globalCss";
+import { useTheme } from "./hooks/useTheme";
 import { login, cadastrar, logout, onAuthChange } from "./services/authService";
 import { buscarOuCriarNegocio, carregarDadosNegocio, salvarConfig } from "./services/negocioService";
 import { salvarReceitas } from "./services/receitasService";
 import { listarProdutos, salvarProduto, desativarProduto } from "./services/produtosService";
 import { listarCompras, buscarItensCompra, salvarCompra, excluirCompra } from "./services/comprasService";
-import NavItem from "./components/ui/NavItem";
 import ModalConfirm from "./components/ui/ModalConfirm";
 import ResponsiveDrawer from "./components/ui/ResponsiveDrawer";
 import QuickProdModal from "./components/forms/QuickProdModal";
@@ -20,6 +20,7 @@ import ReceitaForm from "./components/forms/ReceitaForm";
 import CompraForm from "./components/forms/CompraForm";
 import DashboardHome from "./components/DashboardHome";
 import RelatoriosPanel from "./components/RelatoriosPanel";
+import AppLayout from "./components/layout/AppLayout";
 import { LoadingScreen, DataLoadingScreen, EmailConfirmScreen, CadastroScreen, LoginScreen } from "./pages/AuthScreens";
 import ReceitasPage from "./pages/ReceitasPage";
 import ProdutosPage from "./pages/ProdutosPage";
@@ -39,27 +40,15 @@ export default function App() {
   const [receitasRowId,setReceitasRowId]=useState(null); const [recipes,setRecipes]=useState([]); const [produtos,setProdutos]=useState([]); const [compras,setCompras]=useState([]); const [loading,setLoading]=useState(false); const [saving,setSaving]=useState(false);
   const [tab,setTab]=useState("dashboard"); const [view,setView]=useState("list"); const [editId,setEditId]=useState(null); const [detailId,setDetailId]=useState(null); const [editPId,setEditPId]=useState(null);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
-  const [darkMode,setDarkMode]=useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
+  const { dark, toggle: toggleDark } = useTheme();
   const [pFormInit,setPFormInit]=useState(null); const [rFormInit,setRFormInit]=useState(null);
   const [searchR,setSearchR]=useState(""); const [catR,setCatR]=useState("Todos"); const [searchP,setSearchP]=useState(""); const [catP,setCatP]=useState("Todos");
-  const [toast,setToast]=useState(""); const [confirmDel,setConfirmDel]=useState(null); const [viewRel,setViewRel]=useState(false); const [quickPOpen,setQuickPOpen]=useState(false);
+  const [toast,setToast]=useState(""); const [confirmDel,setConfirmDel]=useState(null); const [quickPOpen,setQuickPOpen]=useState(false);
   const [searchC,setSearchC]=useState(""); const [mesFiltroC,setMesFiltroC]=useState("Todos"); const [compraDetalhe,setCompraDetalhe]=useState(null); const [compraItens,setCompraItens]=useState({}); const [mapaUsuarios,setMapaUsuarios]=useState({});
-  const [config,setConfig]=useState(null); const [viewConfig,setViewConfig]=useState(false);
+  const [config,setConfig]=useState(null);
 
   const toast_ = useCallback(msg => { setToast(msg); setTimeout(() => setToast(""), 2800); }, []);
-  const recipesCalc = useMemo(() => recipes.map(r => ({ ...r, _calc: calc(r, produtos, config) })), [recipes, produtos, config]);
-
-  useEffect(() => {
-    if (darkMode) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, [darkMode]);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e) => setDarkMode(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const recipesCalc = useMemo(() => recipes.map(r => ({ ...r, _calc: calc(r, produtos, config) })), [recipes, produtos, config]);;
 
   async function loadUserData(sessionUser) {
     setLoading(true);
@@ -131,131 +120,30 @@ export default function App() {
   if (!user) return <LoginScreen authForm={authForm} authError={authError} authLoading={authLoading} setAuthForm={setAuthForm} setAuthError={setAuthError} setAuthView={setAuthView} fazerLogin={fazerLogin}/>;
   if (loading) return <DataLoadingScreen negocioNome={negocioNome}/>;
 
-  // ══════════════════════════════════════════════════════════════
-  // NOVO LAYOUT — SIDEBAR + HEADER + CONTEÚDO
-  // ══════════════════════════════════════════════════════════════
-  const breadcrumb = { dashboard:"Dashboard", receitas:"Receitas", produtos:"Produtos", compras:"Compras", relatorios:"Relatórios", config:"Configurações" }[tab] || "Dashboard";
+  const onNew = tab==="receitas"?openNewR:tab==="produtos"?openNewP:tab==="compras"?openNewC:null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-[#0F0F12]">
-
-      {/* ── SIDEBAR ── */}
-      <aside className={`${sidebarCollapsed ? "w-16" : "w-60"} shrink-0 bg-white dark:bg-[#0F0F12] border-r border-gray-200 dark:border-[#1F1F23] flex flex-col overflow-hidden transition-all duration-300`}>
-
-        {/* Logo + toggle */}
-        <div className="h-14 flex items-center justify-between px-3 border-b border-gray-200 dark:border-[#1F1F23] shrink-0">
-          {!sidebarCollapsed && (
-            <div className="min-w-0">
-              <div className="font-semibold text-gray-900 dark:text-white text-sm leading-tight truncate">Delícias da Jay</div>
-              <div className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-0.5">Gestão</div>
-            </div>
-          )}
-          <button onClick={() => setSidebarCollapsed(!sidebarCollapsed)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors shrink-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {!sidebarCollapsed && <div className="px-2 pt-1 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Visão Geral</div>}
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>} label="Dashboard" active={tab==="dashboard"} collapsed={sidebarCollapsed} onClick={() => { setTab("dashboard"); setView("list"); }} />
-
-          {!sidebarCollapsed && <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Confeitaria</div>}
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>} label="Receitas" active={tab==="receitas"} collapsed={sidebarCollapsed} onClick={() => { setTab("receitas"); setView("list"); }} />
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>} label="Produtos" active={tab==="produtos"} collapsed={sidebarCollapsed} onClick={() => { setTab("produtos"); setView("list"); }} />
-
-          {!sidebarCollapsed && <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Financeiro</div>}
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>} label="Compras" active={tab==="compras"} collapsed={sidebarCollapsed} onClick={() => { setTab("compras"); setView("list"); }} />
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>} label="Relatórios" active={tab==="relatorios"} collapsed={sidebarCollapsed} onClick={() => setTab("relatorios")} />
-
-          {!sidebarCollapsed && <div className="px-2 pt-3 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sistema</div>}
-          <NavItem icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>} label="Configurações" active={tab==="config"} collapsed={sidebarCollapsed} onClick={() => setTab("config")} />
-        </nav>
-
-        {/* Usuário + logout */}
-        <div className="shrink-0 border-t border-gray-200 dark:border-[#1F1F23] p-3">
-          {!sidebarCollapsed ? (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-700 dark:text-gray-200 text-sm font-bold shrink-0">
-                {user?.email?.[0]?.toUpperCase() || "U"}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{negocioNome}</div>
-                <div className="text-xs text-gray-400 truncate">{user?.email}</div>
-              </div>
-              <button onClick={fazerLogout} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Sair"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
-            </div>
-          ) : (
-            <button onClick={fazerLogout} className="w-full flex justify-center p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Sair"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
-          )}
-        </div>
-      </aside>
-
-      {/* ── ÁREA PRINCIPAL ── */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-
-        {/* HEADER */}
-        <header className="h-14 bg-white dark:bg-[#0F0F12] border-b border-gray-200 dark:border-[#1F1F23] flex items-center px-5 gap-4 shrink-0">
-          <div className="flex-1 min-w-0 text-sm text-gray-500 dark:text-gray-400">
-            <span className="text-gray-400 dark:text-gray-500">Delícias da Jay</span>
-            <span className="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-            <span className="font-semibold text-gray-700 dark:text-gray-200">{breadcrumb}</span>
+    <AppLayout
+      tab={tab} setTab={setTab} view={view} setView={setView}
+      user={user} negocioNome={negocioNome} fazerLogout={fazerLogout}
+      dark={dark} toggleDark={toggleDark}
+      sidebarCollapsed={sidebarCollapsed} setSidebarCollapsed={setSidebarCollapsed}
+      onNew={onNew}
+    >
+      {tab === "dashboard" && <DashboardHome recipesCalc={recipesCalc} produtos={produtos} compras={compras} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb}/>}
+      {tab === "receitas" && <ReceitasPage filtR={filtR} recipes={recipes} detailId={detailId} view={view} searchR={searchR} catR={catR} setSearchR={setSearchR} setCatR={setCatR} openDet={openDet} fmt={fmt} recipesCalc={recipesCalc} produtos={produtos} openEditR={openEditR} copiarReceita={copiarReceita} pedirExcR={pedirExcR} CAT_R={CAT_R}/>}
+      {tab === "produtos" && <ProdutosPage filtP={filtP} editPId={editPId} view={view} searchP={searchP} catP={catP} setSearchP={setSearchP} setCatP={setCatP} openEditP={openEditP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} CATEMOJI={CATEMOJI} CAT_P={CAT_P}/>}
+      {tab === "compras" && <ComprasPage filtC={filtC} compras={compras} compraDetalhe={compraDetalhe} view={view} searchC={searchC} mesFiltroC={mesFiltroC} setSearchC={setSearchC} setMesFiltroC={setMesFiltroC} mesesCompras={mesesCompras} compraItens={compraItens} mapaUsuarios={mapaUsuarios} openDetC={openDetC} fmt={fmt} pedirExcC={pedirExcC}/>}
+      {tab === "relatorios" && <RelatoriosPanel recipesCalc={recipesCalc} produtos={produtos} compras={compras} filtP={filtP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} onClose={() => setTab("dashboard")} onExportCSV={exportarCSV}/>}
+      {tab === "config" && (
+        <div className="max-w-2xl mx-auto p-6">
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Configurações</h1>
+            <p className="text-sm text-zinc-400 mt-0.5">Personalize o seu negócio</p>
           </div>
-
-          {(tab === "receitas" || tab === "produtos" || tab === "compras") && (
-            <button
-              onClick={tab === "receitas" ? openNewR : tab === "produtos" ? openNewP : openNewC}
-              className="px-4 py-1.5 bg-gray-900 hover:bg-gray-700 text-white rounded-lg text-sm font-semibold transition-colors"
-            >
-              + {tab === "receitas" ? "Receita" : tab === "produtos" ? "Produto" : "Compra"}
-            </button>
-          )}
-
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title={darkMode ? "Modo claro" : "Modo escuro"}
-          >
-            {darkMode
-              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-            }
-          </button>
-        </header>
-
-        {/* CONTEÚDO */}
-        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-[#0F0F12]">
-
-          {/* Dashboard */}
-          {tab === "dashboard" && (
-            <DashboardHome recipesCalc={recipesCalc} produtos={produtos} compras={compras} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb}/>
-          )}
-
-          {/* Receitas */}
-          {tab === "receitas" && <ReceitasPage filtR={filtR} recipes={recipes} detailId={detailId} view={view} searchR={searchR} catR={catR} setSearchR={setSearchR} setCatR={setCatR} openDet={openDet} fmt={fmt} recipesCalc={recipesCalc} produtos={produtos} openEditR={openEditR} copiarReceita={copiarReceita} pedirExcR={pedirExcR} CAT_R={CAT_R}/>}
-
-          {/* Produtos */}
-          {tab === "produtos" && <ProdutosPage filtP={filtP} editPId={editPId} view={view} searchP={searchP} catP={catP} setSearchP={setSearchP} setCatP={setCatP} openEditP={openEditP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} CATEMOJI={CATEMOJI} CAT_P={CAT_P}/>}
-
-          {/* Compras */}
-          {tab === "compras" && <ComprasPage filtC={filtC} compras={compras} compraDetalhe={compraDetalhe} view={view} searchC={searchC} mesFiltroC={mesFiltroC} setSearchC={setSearchC} setMesFiltroC={setMesFiltroC} mesesCompras={mesesCompras} compraItens={compraItens} mapaUsuarios={mapaUsuarios} openDetC={openDetC} fmt={fmt} pedirExcC={pedirExcC}/>}
-
-          {/* Relatórios */}
-          {tab === "relatorios" && (
-            <RelatoriosPanel recipesCalc={recipesCalc} produtos={produtos} compras={compras} filtP={filtP} fmt={fmt} fmtN={fmtN} pPreco={pPreco} pEmb={pEmb} onClose={() => setTab("dashboard")} onExportCSV={exportarCSV}/>
-          )}
-
-          {/* Configurações */}
-          {tab === "config" && (
-            <div className="max-w-2xl mx-auto p-6">
-              <div className="mb-6">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Configurações</h1>
-                <p className="text-sm text-gray-400 mt-0.5">Personalize o seu negócio</p>
-              </div>
-              <ConfigForm config={config} saving={saving} onSaved={handleSaveConfig} toast_={toast_}/>
-            </div>
-          )}
-
-        </main>
-      </div>
+          <ConfigForm config={config} saving={saving} onSaved={handleSaveConfig} toast_={toast_}/>
+        </div>
+      )}
 
       {/* Formulários (drawers) */}
       {view === "pForm" && <ResponsiveDrawer title={editPId ? "Editar Produto" : "Novo Produto"} onClose={() => setView("list")}><ProdutoForm initialData={pFormInit} editId={editPId} recipes={recipes} saving={saving} onSaved={handleSaveProd} onDelete={pedirExcP} onCopy={copiarProduto} toast_={toast_}/></ResponsiveDrawer>}
@@ -266,6 +154,6 @@ export default function App() {
       <QuickProdModal open={quickPOpen} onClose={() => setQuickPOpen(false)} negocioId={negocioId} onProductSaved={reloadProdutos} toast_={toast_}/>
       {toast && <div style={s.tst}>{toast}</div>}
       {saving && <div style={s.sync}>💾 Salvando...</div>}
-    </div>
+    </AppLayout>
   );
 }
