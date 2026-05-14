@@ -4,6 +4,8 @@ import { SEED_RECIPES, CAT_R, CAT_P, UNIDS, EMOJIS, CATEMOJI, FORMAS_PAG } from 
 import { fmt, fmtN, genId } from "./utils/formatters";
 import { pPreco, pEmb } from "./utils/helpers";
 import { calc, calcCustosFixos } from "./utils/calc";
+import s from "./styles/formStyles";
+import GLOBAL_CSS from "./styles/globalCss";
 
 // ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
 const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
@@ -16,161 +18,6 @@ const supabase  = createClient(SUPA_URL, SUPA_ANON, {
   },
 });
 
-// ─── CORES ─────────────────────────────────────────────────────────────────
-const V="#4A1A2C", R="#C45C74", RL="#E8899A", RC="#F5D0D8", CR="#FFF0F3", G="#7A4A58", W="#fff";
-
-// ─── ESTILOS ───────────────────────────────────────────────────────────────
-const s = {
-  app:{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:CR,fontFamily:"'DM Sans',sans-serif",color:V},
-  hdr:{background:V,padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100},
-  logo:{fontFamily:"'Playfair Display',serif",color:RL,fontSize:17,lineHeight:1.2},
-  lsub:{color:"#D4748866",fontSize:10,letterSpacing:".1em",textTransform:"uppercase"},
-  bpri:{background:R,color:W,border:"none",borderRadius:50,padding:"8px 16px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"},
-  bback:{background:"rgba(255,255,255,.12)",border:"none",color:W,borderRadius:50,padding:"7px 14px",fontSize:13,cursor:"pointer"},
-  tabs:{display:"flex",borderBottom:`2px solid ${RC}`,background:W},
-  tab:{flex:1,padding:"12px 8px",border:"none",background:"none",fontSize:12,fontWeight:600,color:`${G}88`,cursor:"pointer",borderBottom:"3px solid transparent",marginBottom:"-2px",fontFamily:"'DM Sans',sans-serif"},
-  taba:{color:R,borderBottomColor:R},
-  srchW:{margin:"12px 14px 0",position:"relative",display:"block"},
-  srch:{width:"100%",padding:"10px 14px 10px 38px",borderRadius:50,border:`2px solid ${RC}`,background:CR,fontSize:13,color:V,outline:"none",boxSizing:"border-box",fontFamily:"'DM Sans',sans-serif",display:"block"},
-  chips:{display:"flex",gap:8,padding:"10px 14px",overflowX:"auto",scrollbarWidth:"none"},
-  chip:{flexShrink:0,background:W,border:`2px solid ${RC}`,color:G,borderRadius:50,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"},
-  chipa:{background:V,borderColor:V,color:RL},
-  cnt:{padding:"0 18px 6px",fontSize:11,color:`${G}88`},
-  list:{padding:"0 14px 100px",display:"flex",flexDirection:"column",gap:10},
-  card:{background:W,borderRadius:14,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,boxShadow:`0 2px 8px rgba(74,26,44,.08)`,cursor:"pointer",border:"1.5px solid transparent",transition:"all .15s"},
-  cem:{width:46,height:46,background:CR,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,flexShrink:0},
-  cbd:{flex:1,minWidth:0},cnm:{fontWeight:600,fontSize:14,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"},
-  cmt:{fontSize:11,color:G,marginTop:2},cpr:{textAlign:"right",flexShrink:0},
-  cpv:{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:R},cpl:{fontSize:10,color:`${G}88`},
-  emp:{textAlign:"center",padding:"60px 20px"},
-  sec:{background:"#fff",borderRadius:10,padding:16,marginBottom:12,border:"1px solid #E5E7EB"},
-  st:{fontSize:13,fontWeight:600,color:"#374151",marginBottom:10},
-  lbl:{display:"block",fontSize:11,fontWeight:600,color:"#6B7280",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4},
-  inp:{width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #E5E7EB",background:"#fff",fontFamily:"'Inter','DM Sans',sans-serif",fontSize:14,color:"#111827",outline:"none",marginBottom:10,boxSizing:"border-box",WebkitAppearance:"none"},
-  tag:{background:"#EFF6FF",borderRadius:7,padding:"5px 9px",fontSize:11,color:"#1D4ED8",fontWeight:600,marginBottom:7,border:"1px solid #BFDBFE"},
-  badd:{background:"#F9FAFB",border:"1.5px dashed #D1D5DB",color:"#6B7280",borderRadius:8,padding:10,width:"100%",fontSize:13,fontWeight:600,cursor:"pointer",marginTop:3,fontFamily:"'Inter','DM Sans',sans-serif"},
-  bsave:{background:"#111827",color:"#fff",border:"none",borderRadius:8,padding:"12px 20px",width:"100%",fontFamily:"'Inter','DM Sans',sans-serif",fontSize:14,fontWeight:600,cursor:"pointer"},
-  dh:{background:"#111827",padding:"18px 18px 22px"},dn:{fontSize:20,color:"#fff",fontWeight:700,marginBottom:3},
-  dc:{fontSize:11,color:"rgba(255,255,255,.55)",textTransform:"uppercase",letterSpacing:".07em"},db:{padding:"12px 12px 100px"},
-  ir:{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F3F4F6",fontSize:13},
-  icost:{fontWeight:600,color:"#111827",flexShrink:0,marginLeft:6},
-  pg:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8},
-  pb:{background:"#F9FAFB",borderRadius:9,padding:"9px 11px",border:"1px solid #E5E7EB"},
-  pl:{fontSize:10,textTransform:"uppercase",letterSpacing:".05em",color:"#6B7280",marginBottom:3},
-  pv:{fontSize:15,fontWeight:700,color:"#111827"},
-  ph:{background:"#111827",borderRadius:12,padding:"14px 16px",color:"#fff",margin:"7px 0"},
-  phl:{fontSize:11,opacity:.8,marginBottom:3},phv:{fontSize:26,fontWeight:700},
-  be:{flex:1,background:"#111827",color:"#fff",border:"none",borderRadius:8,padding:12,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"'Inter','DM Sans',sans-serif"},
-  bd:{background:"none",border:"1.5px solid #FCA5A5",color:"#DC2626",borderRadius:8,padding:"11px 16px",fontSize:13,cursor:"pointer",fontFamily:"'Inter','DM Sans',sans-serif"},
-  fb:{padding:"12px 12px 20px"},er:{display:"flex",flexWrap:"wrap",gap:7,marginBottom:12},
-  eb:{width:38,height:38,borderRadius:9,border:"1.5px solid #E5E7EB",background:"#F9FAFB",fontSize:19,cursor:"pointer"},
-  ebs:{borderColor:"#6366F1",background:"#EEF2FF"},
-  ic:{background:"#F9FAFB",borderRadius:10,padding:12,marginBottom:10,border:"1px solid #E5E7EB"},
-  ich:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8},
-  brm:{background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",fontFamily:"'Inter','DM Sans',sans-serif"},
-  help:{fontSize:12,color:"#6B7280",marginBottom:10,lineHeight:1.5,background:"#F3F4F6",borderRadius:7,padding:"7px 10px",borderLeft:"3px solid #D1D5DB"},
-  cs:{background:"#F9FAFB",borderRadius:9,padding:"10px 12px",marginBottom:12,border:"1px solid #E5E7EB"},
-  cr:{display:"flex",justifyContent:"space-between",fontSize:13,padding:"2px 0",color:"#374151"},
-  tst:{position:"fixed",bottom:22,left:"50%",transform:"translateX(-50%)",background:"#111827",color:"#fff",padding:"11px 22px",borderRadius:50,fontSize:13,fontWeight:500,zIndex:300,whiteSpace:"nowrap",boxShadow:"0 4px 18px rgba(0,0,0,.3)"},
-  sync:{position:"fixed",top:68,right:10,background:"#374151",color:"#fff",padding:"3px 10px",borderRadius:50,fontSize:10,zIndex:100},
-};
-
-// ─── CSS GLOBAL (Injetado) ────────────────────────────────────────────────
-const GLOBAL_CSS = `
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:#F9FAFB;font-family:'Inter',system-ui,sans-serif;}
-  input,select,textarea{color:#111827!important;-webkit-text-fill-color:#111827!important;}
-  input:focus,select:focus,textarea:focus{border-color:#6B7280!important;background:#fff!important;}
-  input::placeholder{color:#9CA3AF!important;-webkit-text-fill-color:#9CA3AF!important;}
-  ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:4px;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-  @keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-  .card-h:hover{background:#F3F4F6!important;cursor:pointer;}
-  .card-hl:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)!important;transform:translateY(-1px);cursor:pointer;}
-  .btn-h:hover{opacity:.85;cursor:pointer;}
-  .ch:hover{border-color:#9CA3AF!important;transform:translateY(-1px);}
-  .po:hover{background:#F9FAFB!important;}
-
-  /* ── RESPONSIVE DRAWER CSS ── */
-  @media(max-width:767px){
-    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; display: flex; flex-direction: column; }
-    .drawer-container { width: 100%; min-height: 100vh; background: #ffffff; display: flex; flex-direction: column; overflow-y: auto; }
-    .drawer-header { background: #ffffff; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #E5E7EB; flex-shrink: 0; }
-    .drawer-header h2 { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 600; color: #111827; margin: 0; }
-    .drawer-body { padding: 16px 16px 100px; flex: 1; background: #F9FAFB; }
-    .drawer-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-  }
-
-  @media(min-width:768px){
-    .desk-grid{display:grid!important;grid-template-columns:280px 1fr;height:100vh;overflow:hidden;}
-    .desk-main{background:#F9FAFB;overflow-y:auto;display:flex;flex-direction:column;}
-
-    /* Drawer Desktop */
-    .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; justify-content: flex-end; backdrop-filter: blur(2px); overflow: hidden; }
-    .drawer-container { width: 500px; height: 100vh; background: #ffffff; box-shadow: -4px 0 24px rgba(0,0,0,0.15); animation: slideLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; display: flex; flex-direction: column; overflow: hidden; }
-    .drawer-header { padding: 20px 24px; background: #ffffff; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-    .drawer-header h2 { font-family: 'Inter', sans-serif; font-size: 18px; font-weight: 600; color: #111827; margin: 0; }
-    .drawer-body { padding: 24px; overflow-y: auto; flex: 1; background: #F9FAFB; }
-    @keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-    /* Forms Desktop Inputs */
-    .desk-row { display: flex; gap: 12px; }
-    .desk-row > div { flex: 1; min-width: 0; }
-    .drawer-actions { display: flex; flex-direction: row-reverse; justify-content: flex-start; gap: 10px; margin-top: 24px; border-top: 1px solid #E5E7EB; padding-top: 16px; }
-    .drawer-actions button { width: auto!important; padding: 12px 24px!important; border-radius: 8px!important; margin-top: 0!important; }
-  }
-
-  /* ── PRINT CSS OTIMIZADO ── */
-  @media print {
-    .no-print, .desk-side, header, .tabs, .drawer-overlay, button, .sync, .tst {
-      display: none !important;
-    }
-    .print-only { display: block !important; }
-
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
-    }
-
-    body, .app, #root {
-      background: #fff !important;
-      width: 100% !important;
-      max-width: 100% !important;
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-
-    .desk-grid {
-      display: block !important;
-      height: auto !important;
-      overflow: visible !important;
-    }
-
-    .desk-main {
-      overflow: visible !important;
-      background: #fff !important;
-      padding: 0 !important;
-      height: auto !important;
-    }
-
-    .desk-detail-grid {
-      display: grid !important;
-      grid-template-columns: 1fr 280px !important;
-      gap: 20px !important;
-      align-items: start !important;
-      break-inside: avoid;
-    }
-
-    .desk-detail-grid > div {
-      box-shadow: none !important;
-      border: 1px solid #E5E7EB !important;
-      break-inside: avoid;
-    }
-  }
-`;
 
 // ─── NAV ITEM ──────────────────────────────────────────────────
 function NavItem({ icon, label, active, collapsed, onClick }) {
@@ -542,7 +389,7 @@ function CompraForm({ produtos, saving, onSaved, onOpenQuickP, toast_ }) {
 }
 
 // ─── MINI BAR CHART (SVG puro — sem dependência) ─────────────
-function MiniBarChart({ data, color = R, height = 110 }) {
+function MiniBarChart({ data, color = "#6366f1", height = 110 }) {
   if (!data || data.length === 0) return <div style={{textAlign:"center",padding:20,color:"#6B7280",fontSize:12}}>Sem dados</div>;
   const max = Math.max(...data.map(d => d.value), 1);
   const barW = Math.max(24, Math.floor(260 / data.length));
@@ -557,8 +404,8 @@ function MiniBarChart({ data, color = R, height = 110 }) {
           return (
             <g key={i}>
               <rect x={x} y={height - h} width={barW} height={h} rx={4} fill={color} opacity={0.85} />
-              <text x={x + barW / 2} y={height - h - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill={V}>{d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value > 0 ? d.value : ""}</text>
-              <text x={x + barW / 2} y={height + 14} textAnchor="middle" fontSize={9} fill={G}>{d.label}</text>
+              <text x={x + barW / 2} y={height - h - 4} textAnchor="middle" fontSize={9} fontWeight={600} fill="#374151">{d.value >= 1000 ? `${(d.value/1000).toFixed(1)}k` : d.value > 0 ? d.value : ""}</text>
+              <text x={x + barW / 2} y={height + 14} textAnchor="middle" fontSize={9} fill="#6B7280">{d.label}</text>
             </g>
           );
         })}
