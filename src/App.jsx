@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { SEED_RECIPES, CAT_R, CAT_P, UNIDS, EMOJIS, CATEMOJI, FORMAS_PAG } from "./lib/constants";
+import { fmt, fmtN, genId } from "./utils/formatters";
+import { pPreco, pEmb } from "./utils/helpers";
+import { calc, calcCustosFixos } from "./utils/calc";
 
 // ─── SUPABASE CLIENT ───────────────────────────────────────────────────────
 const SUPA_URL  = import.meta.env.VITE_SUPA_URL;
@@ -11,68 +15,6 @@ const supabase  = createClient(SUPA_URL, SUPA_ANON, {
     lock: async (_n, _t, fn) => await fn(),
   },
 });
-
-// ─── CONSTANTES ────────────────────────────────────────────────────────────
-const SEED_RECIPES = [];
-const CAT_R  = ["Brownies","Docinhos","Copo da Felicidade","Bolo no Pote","Cones Trufados","Salgados","Outro"];
-const CAT_P  = ["Secos","Laticínios","Chocolates","Embalagens","Outros"];
-const UNIDS  = ["g","kg","ml","L","un","colher","xícara"];
-const EMOJIS = ["🍫","🧁","🎂","🍰","🍬","🍮","🥧","🍩","🍪","🥐","🫙","🌋","🍇","🌽","🧇","🥮","🍭","☕","🌮","🥚","🧀"];
-const CATEMOJI = {"Secos":"🌾","Laticínios":"🥛","Chocolates":"🍫","Embalagens":"📦","Outros":"🛒"};
-const FORMAS_PAG = ["Pix","Cartão débito","Cartão crédito","Dinheiro","Boleto"];
-
-// ─── HELPERS ───────────────────────────────────────────────────────────────
-const fmt  = v => "R$ " + (parseFloat(v)||0).toFixed(2).replace(".",",");
-const fmtN = v => (parseFloat(v)||0).toFixed(2).replace(".",",");
-const genId = () => typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random().toString(36).slice(2);
-const pPreco = p => p.preco_ultimo !== undefined ? p.preco_ultimo : p.preco;
-const pEmb   = p => p.embalagem_qtd !== undefined ? p.embalagem_qtd : p.embalagemQtd;
-
-// calcCustosFixos: soma todos os custos fixos da config e retorna o % sobre faturamento
-function calcCustosFixos(cfg) {
-  if (!cfg || !cfg.faturamento_mensal || cfg.faturamento_mensal <= 0) return null;
-  const totalFixo = (parseFloat(cfg.custo_gas)||0) + (parseFloat(cfg.custo_energia)||0) +
-    (parseFloat(cfg.custo_agua)||0) + (parseFloat(cfg.custo_internet)||0) +
-    (parseFloat(cfg.custo_mei)||0) + (parseFloat(cfg.custo_transporte)||0) +
-    (parseFloat(cfg.custo_outros)||0);
-  return { totalFixo, pct: (totalFixo / parseFloat(cfg.faturamento_mensal)) * 100 };
-}
-
-function calc(r, prods, cfg) {
-  const ci = r.ingredientes.reduce((s,i) => {
-    const p = prods.find(x => x.id === i.produtoId);
-    if (!p) return s;
-    const eq = pEmb(p);
-    return eq > 0 ? s + (pPreco(p) / eq) * i.usadoQtd : s;
-  }, 0);
-
-  // Se tem config com faturamento, usa custos fixos reais; senão fallback para outrosCustos%
-  const cfgFixos = calcCustosFixos(cfg);
-  const pctOutros = cfgFixos ? cfgFixos.pct / 100 : (r.outrosCustos !== undefined ? r.outrosCustos : 30) / 100;
-  const usandoConfig = !!cfgFixos;
-
-  const outros = ci * pctOutros;
-  const total  = ci + outros + (r.despesas||0);
-  const porUn  = r.rendimento > 0 ? total / r.rendimento : 0;
-  const semT   = porUn * (1 + (r.margem||100) / 100);
-  const tp     = (r.taxaDelivery||30) / 100;
-  const final_ = tp < 1 ? semT / (1 - tp) : semT;
-  const taxa   = final_ - semT;
-  const lucro    = (final_ - taxa - porUn) * r.rendimento;
-  const lucroApp = r.precoApp > 0 ? (r.precoApp - (r.precoApp * tp) - porUn) * r.rendimento : null;
-
-  // Simulação por canal (se config tem canais)
-  const canais = cfg?.canais_venda || [];
-  const simCanais = canais.map(ch => {
-    const t = (parseFloat(ch.taxa)||0) / 100;
-    const precoCanal = t < 1 ? semT / (1 - t) : semT;
-    const taxaCanal = precoCanal - semT;
-    const lucroCanal = (precoCanal - taxaCanal - porUn) * r.rendimento;
-    return { nome: ch.nome, taxa: ch.taxa, preco: precoCanal, lucro: lucroCanal };
-  });
-
-  return { ci, outros, pctOutros: pctOutros * 100, usandoConfig, total, porUn, semT, taxa, final: final_, lucro, lucroApp, simCanais };
-}
 
 // ─── CORES ─────────────────────────────────────────────────────────────────
 const V="#4A1A2C", R="#C45C74", RL="#E8899A", RC="#F5D0D8", CR="#FFF0F3", G="#7A4A58", W="#fff";
